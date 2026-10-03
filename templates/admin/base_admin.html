@@ -1,0 +1,38 @@
+{% extends 'base.html' %}
+{% from 'componentes/icones.html' import icone %}
+{% block titulo %}{% block titulo_admin %}Painel{% endblock %} · Admin {{ loja.NOME }}{% endblock %}
+{% block head %}<meta name="robots" content="noindex">{% endblock %}
+{% block classe_body %}bg-[#f5f1ee]{% endblock %}
+
+{% set menu_admin = [
+  ('painel', 'admin.painel', 'Painel', 'painel'),
+  ('produtos', 'admin.produtos', 'Produtos', 'etiqueta'),
+  ('categorias', 'admin.categorias', 'Categorias', 'pastas'),
+  ('pedidos', 'admin.pedidos', 'Pedidos', 'recibo'),
+] %}
+
+{% block cabecalho %}
+<header class="sticky top-0 z-30 border-b border-line bg-white">
+  <div class="mx-auto flex h-14 max-w-7xl items-center gap-4 px-4 md:h-16 md:px-6">
+    <a href="{{ url_for('admin.painel') }}" class="flex shrink-0 items-center gap-2">
+      <img src="{{ url_for('static', filename=loja.LOGOS['simbolo']) }}" alt="" width="32" height="32" class="size-8">
+      <span class="hidden text-sm font-semibold md:inline">Painel · {{ loja.NOME }}</span>
+    </a>
+    <nav aria-label="Painel" class="rolagem-horizontal flex min-w-0 flex-1 gap-1 overflow-x-auto">
+      {% for chave, endpoint, rotulo, nome_icone in menu_admin %}
+      {% set ativo = chave == (secao | default('painel')) %}
+      <a href="{{ url_for(endpoint) }}" class="flex shrink-0 items-center gap-2 rounded-botao px-3 py-2 text-sm font-medium {{ 'bg-ink text-white' if ativo else 'hover:bg-cream' }}" {% if ativo %}aria-current="page"{% endif %}>{{ icone(nome_icone, 'size-[18px] hidden sm:block') }}{{ rotulo }}</a>
+      {% endfor %}
+    </nav>
+    <a href="{{ url_for('loja.inicio') }}" class="hidden shrink-0 items-center gap-1.5 text-sm font-medium text-rose-texto hover:underline md:flex">{{ icone('olho', 'size-[18px]') }}Ver loja</a>
+  </div>
+</header>
+{% endblock %}
+
+{% block conteudo %}
+<div class="mx-auto max-w-7xl px-4 py-6 md:px-6 md:py-8">
+  {% block admin %}{% endblock %}
+</div>
+{% endblock %}
+
+{% block rodape %}{% endblock %}

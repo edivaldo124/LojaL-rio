@@ -1,0 +1,45 @@
+{% extends 'admin/base_admin.html' %}
+{% set secao = 'produtos' %}
+{% from 'componentes/ui.html' import botao %}
+{% from 'componentes/icones.html' import icone %}
+{% block titulo_admin %}Produtos{% endblock %}
+
+{% block admin %}
+<div class="flex flex-wrap items-center justify-between gap-4">
+  <h1 class="text-2xl font-semibold tracking-tight">Produtos <span class="text-base font-normal texto-secundario">({{ produtos | length }})</span></h1>
+  <div class="flex w-full gap-2 sm:w-auto">
+    <form method="get" role="search" class="relative flex-1 sm:w-64">
+      <label for="busca-admin" class="sr-only">Buscar produto</label>
+      <input id="busca-admin" name="q" value="{{ termo }}" type="search" placeholder="Buscar produto" class="campo h-10 pr-10 text-sm">
+      <button class="absolute top-0 right-0 flex size-10 items-center justify-center text-taupe-texto" aria-label="Buscar">{{ icone('busca', 'size-4') }}</button>
+    </form>
+    {{ botao('Novo', href=url_for('admin.novo_produto'), icone_nome='mais', classe='btn-pequeno shrink-0') }}
+  </div>
+</div>
+
+<div class="card relative mt-5 overflow-x-auto">
+  <table class="tabela min-w-[720px]">
+    <thead><tr><th scope="col">Produto</th><th scope="col">Categoria</th><th scope="col">Preço</th><th scope="col">Estoque</th><th scope="col">Situação</th></tr></thead>
+    <tbody>
+      {% for produto in produtos %}
+      {% set imagem = produto.imagem_principal %}
+      {% set baixo = produto.variacoes | selectattr('estoque_baixo') | list | length %}
+      <tr class="hover:bg-cream/60">
+        <td>
+          <a href="{{ url_for('admin.editar_produto', produto_id=produto.id) }}" class="flex items-center gap-3 font-medium hover:underline">
+            <span class="foto block h-14 w-11 shrink-0 rounded-md">{% if imagem %}<img src="{{ imagem.url | imagem }}" alt="" width="88" height="112" loading="lazy">{% endif %}</span>
+            {{ produto.nome }}
+          </a>
+        </td>
+        <td class="texto-secundario">{{ produto.categoria.nome }}</td>
+        <td class="whitespace-nowrap">{{ produto.preco_atual | brl }}{% if produto.em_promocao %}<s class="ml-1 text-xs texto-secundario">{{ produto.preco | brl }}</s>{% endif %}</td>
+        <td class="whitespace-nowrap">{{ produto.estoque_total }} un.{% if baixo %} <span class="etiqueta ml-1 bg-[#fdf3e1] text-[#7a4b00]">{{ baixo }} baixo</span>{% endif %}</td>
+        <td>{% if produto.ativo %}<span class="etiqueta status-PAGO">Ativo</span>{% else %}<span class="etiqueta status-CANCELADO">Inativo</span>{% endif %}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="5" class="py-10 text-center texto-secundario">Nenhum produto encontrado.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

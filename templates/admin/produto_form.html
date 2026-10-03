@@ -1,0 +1,153 @@
+{% extends 'admin/base_admin.html' %}
+{% set secao = 'produtos' %}
+{% from 'componentes/ui.html' import campo, botao %}
+{% from 'componentes/icones.html' import icone %}
+{% block titulo_admin %}{{ produto.nome if produto else 'Novo produto' }}{% endblock %}
+
+{% block admin %}
+<a href="{{ url_for('admin.produtos') }}" class="inline-flex items-center gap-1 text-sm texto-secundario hover:text-ink">{{ icone('voltar', 'size-4') }}Produtos</a>
+<div class="mt-2 flex flex-wrap items-center justify-between gap-3">
+  <h1 class="text-2xl font-semibold tracking-tight">{{ produto.nome if produto else 'Novo produto' }}</h1>
+  {% if produto %}<a href="{{ url_for('loja.produto', slug=produto.slug) }}" class="link inline-flex items-center gap-1.5 text-sm" target="_blank" rel="noopener">{{ icone('olho', 'size-4') }}Ver na loja</a>{% endif %}
+</div>
+
+<div class="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] lg:items-start">
+  {# Dados do produto #}
+  <section class="card min-w-0 p-5" aria-labelledby="titulo-dados">
+    <h2 id="titulo-dados" class="font-semibold">Dados</h2>
+    <form method="post" class="mt-4 grid grid-cols-2 gap-4" novalidate>
+      {{ form.csrf_token }}
+      {{ campo(form.nome, 'col-span-2') }}
+      {{ campo(form.categoria_id, 'col-span-2') }}
+      {{ campo(form.preco, 'col-span-2 sm:col-span-1') }}
+      {{ campo(form.preco_promocional, 'col-span-2 sm:col-span-1') }}
+      {{ campo(form.descricao, 'col-span-2') }}
+      {{ campo(form.composicao, 'col-span-2') }}
+      <label class="col-span-2 flex items-center gap-2 text-sm font-medium">{{ form.ativo(class_='size-4 accent-ink') }}{{ form.ativo.label.text }}</label>
+      {{ botao('Salvar produto' if produto else 'Criar produto', classe='col-span-2') }}
+    </form>
+    {% if produto %}
+    <form method="post" action="{{ url_for('admin.excluir_produto', produto_id=produto.id) }}" class="mt-4 border-t border-line pt-4" data-confirmar="Excluir “{{ produto.nome }}”? As fotos e variações serão apagadas; os pedidos antigos continuam com a cópia dos dados.">
+      {{ form_vazio.csrf_token }}
+      <button class="btn btn-perigo btn-pequeno">{{ icone('lixeira', 'size-4') }}Excluir produto</button>
+    </form>
+    {% endif %}
+  </section>
+
+  {% if produto %}
+  <div class="min-w-0 space-y-6">
+    {# Fotos #}
+    <section id="fotos" class="card p-5" aria-labelledby="titulo-fotos">
+      <h2 id="titulo-fotos" class="font-semibold">Fotos <span class="text-sm font-normal texto-secundario">(a primeira é a capa)</span></h2>
+      {% if produto.imagens %}
+      <ul class="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
+        {% for imagem in produto.imagens %}
+        <li class="rounded-card border border-line p-2">
+          <div class="foto relative aspect-[3/4] rounded-lg">
+            <img src="{{ imagem.url | imagem }}" alt="{{ imagem.texto_alternativo }}" width="300" height="400" loading="lazy">
+            {% if loop.first %}<span class="absolute top-1.5 left-1.5 rounded-full bg-ink px-2 py-0.5 text-[11px] font-semibold text-white">Capa</span>{% endif %}
+          </div>
+          <form method="post" action="{{ url_for('admin.alt_foto', produto_id=produto.id, foto_id=imagem.id) }}" class="mt-2 flex gap-1">
+            {{ form_alt.csrf_token }}
+            <label for="alt-{{ imagem.id }}" class="sr-only">Texto alternativo da foto {{ loop.index }}</label>
+            <input id="alt-{{ imagem.id }}" name="alt" value="{{ imagem.alt or '' }}" maxlength="200" placeholder="Texto alternativo" class="campo h-8 rounded-md px-2 text-xs">
+            <button class="shrink-0 rounded-md border border-line px-2 text-xs font-medium hover:border-ink">OK</button>
+          </form>
+          <div class="mt-2 flex items-center justify-between">
+            <div class="flex gap-1">
+              {% for direcao, rotulo, nome_icone, desabilitado in [('antes', 'Mover para a esquerda', 'voltar', loop.first), ('depois', 'Mover para a direita', 'seta-direita', loop.last)] %}
+              <form method="post" action="{{ url_for('admin.mover_foto', produto_id=produto.id, foto_id=imagem.id) }}">
+                {{ form_vazio.csrf_token }}
+                <input type="hidden" name="direcao" value="{{ direcao }}">
+                <button class="flex size-8 items-center justify-center rounded-md border border-line hover:border-ink disabled:opacity-30" aria-label="{{ rotulo }}" {% if desabilitado %}disabled{% endif %}>{{ icone(nome_icone, 'size-4') }}</button>
+              </form>
+              {% endfor %}
+            </div>
+            <form method="post" action="{{ url_for('admin.excluir_foto', produto_id=produto.id, foto_id=imagem.id) }}" data-confirmar="Excluir esta foto?">
+              {{ form_vazio.csrf_token }}
+              <button class="flex size-8 items-center justify-center rounded-md text-taupe-texto hover:bg-[#fdf1f0] hover:text-[#b3261e]" aria-label="Excluir foto {{ loop.index }}">{{ icone('lixeira', 'size-4') }}</button>
+            </form>
+          </div>
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p class="mt-3 text-sm texto-secundario">Nenhuma foto ainda.</p>
+      {% endif %}
+      <form method="post" action="{{ url_for('admin.enviar_fotos', produto_id=produto.id) }}" enctype="multipart/form-data" class="mt-4 flex flex-col gap-3 rounded-card border border-dashed border-line p-4 sm:flex-row sm:items-center">
+        {{ form_fotos.csrf_token }}
+        <label for="fotos-input" class="sr-only">Escolher fotos</label>
+        {{ form_fotos.fotos(id='fotos-input', class_='min-w-0 flex-1 text-sm file:mr-3 file:rounded-md file:border file:border-line file:bg-white file:px-3 file:py-2 file:text-sm file:font-medium') }}
+        <button class="btn btn-primario btn-pequeno shrink-0">{{ icone('imagem', 'size-4') }}Enviar fotos</button>
+      </form>
+      <p class="mt-2 text-xs texto-secundario">JPG, PNG, WebP ou AVIF. As fotos são convertidas para WebP com até 1600 px.</p>
+    </section>
+
+    {# Variações e estoque #}
+    <section id="variacoes" class="card p-5" aria-labelledby="titulo-variacoes">
+      <h2 id="titulo-variacoes" class="font-semibold">Cores, tamanhos e estoque</h2>
+      {% if produto.variacoes %}
+      <div class="relative mt-4 overflow-x-auto">
+        <table class="tabela min-w-[560px]">
+          <thead><tr><th scope="col">Cor</th><th scope="col">Tam.</th><th scope="col">SKU</th><th scope="col">Estoque</th><th scope="col"><span class="sr-only">Ações</span></th></tr></thead>
+          <tbody>
+            {% for variacao in produto.variacoes | sort(attribute='cor') %}
+            {% set id_form = 'variacao-' ~ variacao.id %}
+            <tr class="{{ 'bg-[#fffaf2]' if variacao.estoque_baixo }}">
+              <td>
+                <span class="flex items-center gap-2">
+                  <input form="{{ id_form }}" type="color" name="cor_hex" value="{{ variacao.cor_hex }}" class="size-7 cursor-pointer rounded-full border border-line p-0" aria-label="Amostra da cor {{ variacao.cor }}">
+                  {{ variacao.cor }}
+                </span>
+              </td>
+              <td class="font-semibold">{{ variacao.tamanho }}</td>
+              <td><input form="{{ id_form }}" name="sku" value="{{ variacao.sku }}" maxlength="60" class="campo h-9 w-44 px-2 font-mono text-xs uppercase" aria-label="SKU {{ variacao.cor }} {{ variacao.tamanho }}"></td>
+              <td>
+                <input form="{{ id_form }}" name="estoque" type="number" min="0" max="99999" value="{{ variacao.estoque }}" class="campo h-9 w-20 px-2 text-sm tabular-nums" aria-label="Estoque {{ variacao.cor }} {{ variacao.tamanho }}">
+                {% if variacao.estoque == 0 %}<span class="ml-1 text-xs font-semibold text-[#b3261e]">esgotado</span>{% elif variacao.estoque_baixo %}<span class="ml-1 text-xs font-semibold text-[#7a4b00]">baixo</span>{% endif %}
+              </td>
+              <td class="whitespace-nowrap text-right">
+                <form id="{{ id_form }}" method="post" action="{{ url_for('admin.salvar_variacao', produto_id=produto.id, variacao_id=variacao.id) }}" class="inline">
+                  {{ form_vazio.csrf_token }}
+                  <button class="rounded-md border border-line px-3 py-1.5 text-xs font-semibold hover:border-ink">Salvar</button>
+                </form>
+                <form method="post" action="{{ url_for('admin.excluir_variacao', produto_id=produto.id, variacao_id=variacao.id) }}" class="inline" data-confirmar="Excluir {{ variacao.cor }} {{ variacao.tamanho }}?">
+                  {{ form_vazio.csrf_token }}
+                  <button class="ml-1 inline-flex size-8 items-center justify-center rounded-md text-taupe-texto hover:bg-[#fdf1f0] hover:text-[#b3261e]" aria-label="Excluir {{ variacao.cor }} {{ variacao.tamanho }}">{{ icone('lixeira', 'size-4') }}</button>
+                </form>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <p class="mt-3 text-sm texto-secundario">Cadastre ao menos uma cor com tamanhos para o produto poder ser vendido.</p>
+      {% endif %}
+
+      <form method="post" action="{{ url_for('admin.adicionar_cor', produto_id=produto.id) }}" class="mt-5 rounded-card border border-dashed border-line p-4" novalidate>
+        {{ form_cor.csrf_token }}
+        <h3 class="text-sm font-semibold">Adicionar cor</h3>
+        <div class="mt-3 grid grid-cols-[1fr_auto] gap-3 sm:grid-cols-[1fr_auto_140px]">
+          {{ campo(form_cor.cor) }}
+          <div>
+            {{ form_cor.cor_hex.label(class_='rotulo') }}
+            {{ form_cor.cor_hex(class_='h-12 w-14 cursor-pointer rounded-botao border border-line bg-white p-1') }}
+          </div>
+          {{ campo(form_cor.estoque, 'col-span-2 sm:col-span-1') }}
+        </div>
+        <fieldset class="mt-3">
+          <legend class="rotulo">Tamanhos</legend>
+          <ul class="flex flex-wrap gap-2">
+            {% for opcao in form_cor.tamanhos %}
+            <li><label>{{ opcao(class_='sr-only') }}<span class="opcao-tamanho">{{ opcao.label.text }}</span></label></li>
+            {% endfor %}
+          </ul>
+        </fieldset>
+        <button class="btn btn-contorno btn-pequeno mt-4">{{ icone('mais', 'size-4') }}Criar variações</button>
+      </form>
+    </section>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

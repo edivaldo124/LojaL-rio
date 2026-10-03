@@ -1,0 +1,90 @@
+{% extends 'admin/base_admin.html' %}
+{% set secao = 'pedidos' %}
+{% from 'componentes/ui.html' import status, campo, botao %}
+{% from 'componentes/icones.html' import icone %}
+{% block titulo_admin %}Pedido #{{ pedido.numero }}{% endblock %}
+
+{% block admin %}
+<a href="{{ url_for('admin.pedidos') }}" class="inline-flex items-center gap-1 text-sm texto-secundario hover:text-ink">{{ icone('voltar', 'size-4') }}Pedidos</a>
+<div class="mt-2 flex flex-wrap items-center gap-3">
+  <h1 class="text-2xl font-semibold tracking-tight">Pedido #{{ pedido.numero }}</h1>
+  {{ status(pedido) }}
+</div>
+<p class="mt-1 text-sm texto-secundario">Feito em {{ pedido.criado_em | data }}{% if pedido.pago_em %} · pago em {{ pedido.pago_em | data }}{% endif %}</p>
+
+{% if pedido.observacao %}
+<div class="aviso aviso-erro mt-4">{{ icone('alerta', 'mt-0.5 size-[18px] shrink-0') }}<p>{{ pedido.observacao }}</p></div>
+{% endif %}
+
+<div class="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] lg:items-start">
+  <div class="min-w-0 space-y-6">
+    <section class="card p-5" aria-labelledby="titulo-itens">
+      <h2 id="titulo-itens" class="font-semibold">Itens ({{ pedido.quantidade_itens }})</h2>
+      <ul class="mt-2 divide-y divide-line">
+        {% for item in pedido.itens %}
+        <li class="flex items-center gap-3 py-3 text-sm">
+          <span class="foto block h-14 w-11 shrink-0 rounded-md">{% if item.imagem_url %}<img src="{{ item.imagem_url | imagem }}" alt="" width="88" height="112" loading="lazy">{% endif %}</span>
+          <div class="min-w-0 flex-1">
+            <p class="font-medium">{{ item.produto_nome }}</p>
+            <p class="texto-secundario">{{ item.cor }} · {{ item.tamanho }} · <span class="font-mono text-xs">{{ item.sku }}</span></p>
+          </div>
+          <p class="whitespace-nowrap">{{ item.quantidade }} × {{ item.preco_unitario | brl }}</p>
+        </li>
+        {% endfor %}
+      </ul>
+      <dl class="mt-2 space-y-1.5 border-t border-line pt-3 text-sm">
+        <div class="flex justify-between"><dt class="texto-secundario">Subtotal</dt><dd>{{ pedido.subtotal | brl }}</dd></div>
+        <div class="flex justify-between"><dt class="texto-secundario">Frete</dt><dd>{{ (pedido.valor_frete | brl) if pedido.valor_frete else 'Grátis' }}</dd></div>
+        {% if pedido.desconto_cupom %}<div class="flex justify-between"><dt class="texto-secundario">Cupom {{ pedido.cupom_codigo }}</dt><dd>−{{ pedido.desconto_cupom | brl }}</dd></div>{% endif %}
+        {% if pedido.desconto_pix %}<div class="flex justify-between"><dt class="texto-secundario">Desconto Pix</dt><dd>−{{ pedido.desconto_pix | brl }}</dd></div>{% endif %}
+        <div class="flex justify-between border-t border-line pt-2 text-base font-bold"><dt>Total</dt><dd>{{ pedido.total | brl }}</dd></div>
+      </dl>
+    </section>
+
+    <section class="grid grid-cols-1 gap-6 sm:grid-cols-2">
+      <div class="card p-5 text-sm leading-relaxed">
+        <h2 class="font-semibold">Cliente</h2>
+        <p class="mt-2">{{ pedido.usuario.nome }}</p>
+        <p class="texto-secundario">{{ pedido.usuario.email }}</p>
+        {% if pedido.usuario.telefone %}<p class="texto-secundario">{{ pedido.usuario.telefone }}</p>{% endif %}
+      </div>
+      <div class="card p-5 text-sm leading-relaxed">
+        <h2 class="font-semibold">{{ 'Entrega' if pedido.tipo_frete == 'ENTREGA' else 'Retirada na loja' }}</h2>
+        {% if pedido.endereco %}
+        <p class="mt-2">{{ pedido.endereco['apelido'] }}</p>
+        <p class="texto-secundario">{{ pedido.endereco['linha_rua'] }}<br>{{ pedido.endereco['linha_cidade'] }}</p>
+        {% else %}
+        <p class="mt-2 texto-secundario">A cliente retira em {{ loja.RETIRADA['endereco'] }}.</p>
+        {% endif %}
+        <p class="mt-1 texto-secundario">{{ pedido.prazo_frete }}</p>
+      </div>
+    </section>
+  </div>
+
+  <aside class="min-w-0 space-y-6">
+    <section class="card p-5" aria-labelledby="titulo-status">
+      <h2 id="titulo-status" class="font-semibold">Atualizar status</h2>
+      {% if pedido.proximos_status() %}
+      <form method="post" class="mt-4 space-y-4" novalidate>
+        {{ form.csrf_token }}
+        {{ campo(form.status) }}
+        {% if pedido.tipo_frete == 'ENTREGA' %}{{ campo(form.rastreio) }}{% endif %}
+        {{ botao('Salvar', classe='w-full') }}
+      </form>
+      {% if pedido.aguardando_pagamento %}
+      <p class="mt-3 text-xs texto-secundario">“Pago” é marcado automaticamente quando o Mercado Pago confirma o pagamento (webhook).</p>
+      {% endif %}
+      {% else %}
+      <p class="mt-2 text-sm texto-secundario">Pedido {{ pedido.rotulo_status | lower }}: não há próximos passos.{% if pedido.motivo_cancelamento %} Motivo: {{ pedido.motivo_cancelamento }}.{% endif %}</p>
+      {% endif %}
+      {% if pedido.rastreio %}<p class="mt-4 rounded-lg bg-cream px-3 py-2 text-sm">Rastreio: <strong class="font-mono">{{ pedido.rastreio }}</strong></p>{% endif %}
+    </section>
+
+    <section class="card p-5 text-sm leading-relaxed" aria-labelledby="titulo-pagamento">
+      <h2 id="titulo-pagamento" class="font-semibold">Pagamento</h2>
+      <p class="mt-2">{{ pedido.rotulo_pagamento }}{% if pedido.id_pagamento_gateway %} · <span class="font-mono text-xs">{{ pedido.id_pagamento_gateway }}</span>{% endif %}</p>
+      {% if pedido.aguardando_pagamento and pedido.expira_em %}<p class="texto-secundario">Expira em {{ pedido.expira_em | data }}</p>{% endif %}
+    </section>
+  </aside>
+</div>
+{% endblock %}

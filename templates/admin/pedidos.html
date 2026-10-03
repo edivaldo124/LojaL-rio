@@ -1,0 +1,43 @@
+{% extends 'admin/base_admin.html' %}
+{% set secao = 'pedidos' %}
+{% from 'componentes/ui.html' import status, chip %}
+{% from 'componentes/icones.html' import icone %}
+{% block titulo_admin %}Pedidos{% endblock %}
+
+{% block admin %}
+<h1 class="text-2xl font-semibold tracking-tight">Pedidos</h1>
+<nav class="rolagem-horizontal mt-4 flex gap-2 overflow-x-auto pb-1" aria-label="Filtrar por status">
+  {{ chip('Todos', ativo=not filtro, href=url_for('admin.pedidos')) }}
+  {% for chave, rotulo in rotulos.items() %}
+  {{ chip(rotulo, ativo=filtro == chave.value, href=url_for('admin.pedidos', status=chave.value)) }}
+  {% endfor %}
+</nav>
+
+<div class="card relative mt-4 overflow-x-auto">
+  <table class="tabela min-w-[760px]">
+    <thead><tr><th scope="col">Pedido</th><th scope="col">Data</th><th scope="col">Cliente</th><th scope="col">Entrega</th><th scope="col">Total</th><th scope="col">Status</th></tr></thead>
+    <tbody>
+      {% for pedido in paginacao.items %}
+      <tr class="hover:bg-cream/60">
+        <td><a href="{{ url_for('admin.pedido', numero=pedido.numero) }}" class="font-semibold hover:underline">#{{ pedido.numero }}</a></td>
+        <td class="whitespace-nowrap texto-secundario">{{ pedido.criado_em | data }}</td>
+        <td>{{ pedido.usuario.nome }}</td>
+        <td class="texto-secundario">{{ 'Entrega · ' ~ pedido.endereco['uf'] if pedido.endereco else 'Retirada' }}</td>
+        <td class="whitespace-nowrap font-medium">{{ pedido.total | brl }}</td>
+        <td>{{ status(pedido) }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="6" class="py-10 text-center texto-secundario">Nenhum pedido{{ ' com este status' if filtro }}.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% if paginacao.pages > 1 %}
+<nav class="mt-5 flex items-center justify-between text-sm" aria-label="Paginação">
+  {% if paginacao.has_prev %}<a class="btn btn-contorno btn-pequeno" href="{{ url_for('admin.pedidos', status=filtro or None, page=paginacao.prev_num) }}">Anterior</a>{% else %}<span></span>{% endif %}
+  <span class="texto-secundario">Página {{ paginacao.page }} de {{ paginacao.pages }}</span>
+  {% if paginacao.has_next %}<a class="btn btn-contorno btn-pequeno" href="{{ url_for('admin.pedidos', status=filtro or None, page=paginacao.next_num) }}">Próxima</a>{% else %}<span></span>{% endif %}
+</nav>
+{% endif %}
+{% endblock %}
