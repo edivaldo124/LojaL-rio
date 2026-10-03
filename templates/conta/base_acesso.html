@@ -1,0 +1,17 @@
+{# Telas de acesso (entrar, cadastrar, senha) — layout do protótipo de login. #}
+{% extends 'base.html' %}
+{% from 'componentes/barra_abas.html' import barra_abas %}
+{% block classe_body %}pb-[84px] md:pb-0{% endblock %}
+{% block cabecalho %}
+<div class="hidden md:block">{% from "componentes/cabecalho.html" import cabecalho %}{{ cabecalho("inicio") }}</div>
+{% endblock %}
+{% block conteudo %}
+<div class="mx-auto max-w-md px-6 pt-10 pb-8 md:mt-10 md:rounded-2xl md:bg-white md:px-10 md:py-10">
+  <a href="{{ url_for('loja.inicio') }}" class="mx-auto block w-fit" aria-label="{{ loja.NOME }}, página inicial">
+    <img src="{{ url_for('static', filename=loja.LOGOS['horizontal']) }}" alt="{{ loja.NOME }} · {{ loja.SLOGAN }}" width="651" height="275" class="h-[88px] w-auto">
+  </a>
+  {% block acesso %}{% endblock %}
+</div>
+{% endblock %}
+{% block rodape %}<div class="hidden md:block">{% include 'componentes/rodape.html' %}</div>{% endblock %}
+{% block barra_inferior %}{{ barra_abas('conta') }}{% endblock %}

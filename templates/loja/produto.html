@@ -1,0 +1,155 @@
+{% extends 'base.html' %}
+{% from 'componentes/cabecalho.html' import cabecalho, botao_sacola %}
+{% from 'componentes/produto_card.html' import produto_card %}
+{% from 'componentes/ui.html' import preco, botao %}
+{% from 'componentes/icones.html' import icone %}
+
+{% set favorito = produto.id in favoritos %}
+{% set cores = produto.cores() %}
+{% set mapa = produto.mapa_variacoes() %}
+{% set cor_inicial = (mapa | selectattr('estoque', 'gt', 0) | map(attribute='cor') | first) or (cores[0].nome if cores else '') %}
+{% set tamanhos_produto = loja.TAMANHOS | select('in', mapa | map(attribute='tamanho') | list) | list %}
+
+{% block titulo %}{{ produto.nome }} · {{ loja.NOME }}{% endblock %}
+{% block descricao %}{{ (produto.descricao or loja.DESCRICAO) | truncate(155) }}{% endblock %}
+{% block og_tipo %}product{% endblock %}
+{% block og_imagem %}{% if produto.imagem_principal %}<meta property="og:image" content="{{ config.URL_BASE }}{{ produto.imagem_principal.url | imagem }}">{% else %}{{ super() }}{% endif %}{% endblock %}
+{% block classe_body %}pb-barra md:pb-0{% endblock %}
+
+{% block cabecalho %}
+{% call cabecalho('titulo', voltar=url_for('loja.categoria', slug=produto.categoria.slug)) %}
+  <form method="post" action="{{ url_for('loja.favoritar', produto_id=produto.id) }}" data-favoritar>
+    {{ form_favorito.csrf_token }}
+    <button type="submit" class="botao-icone {{ 'text-rose' if favorito }}" aria-pressed="{{ 'true' if favorito else 'false' }}" aria-label="Favoritar {{ produto.nome }}">
+      {{ icone('coracao', 'size-6 ' ~ ('fill-current' if favorito else '')) }}
+    </button>
+  </form>
+  {{ botao_sacola() }}
+{% endcall %}
+{% endblock %}
+
+{% block conteudo %}
+<div class="mx-auto max-w-6xl md:grid md:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] md:gap-12 md:px-6 md:pt-8">
+  {# Galeria #}
+  <section aria-label="Fotos do produto" class="md:sticky md:top-24 md:self-start">
+    <div class="galeria bg-placeholder md:rounded-card" data-galeria tabindex="0" aria-roledescription="carrossel">
+      {% for imagem in produto.imagens %}
+      <figure class="foto aspect-[4/5] md:aspect-[3/4]" aria-label="Foto {{ loop.index }} de {{ produto.imagens | length }}">
+        <img src="{{ imagem.url | imagem }}" alt="{{ imagem.texto_alternativo }}" width="1200" height="1600" {% if loop.first %}fetchpriority="high"{% else %}loading="lazy"{% endif %} decoding="async">
+      </figure>
+      {% else %}
+      <div class="flex aspect-[4/5] items-center justify-center text-sm texto-secundario md:aspect-[3/4]">Galeria de fotos do produto</div>
+      {% endfor %}
+    </div>
+    {% if produto.imagens | length > 1 %}
+    <div class="mt-3 flex justify-center gap-1.5" data-pontos>
+      {% for imagem in produto.imagens %}
+      <button type="button" class="size-2 rounded-full {{ 'bg-ink' if loop.first else 'bg-line' }}" data-ponto="{{ loop.index0 }}" aria-label="Ver foto {{ loop.index }}" {% if loop.first %}aria-current="true"{% endif %}></button>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </section>
+
+  {# Informações #}
+  <div class="px-4 pt-5 md:px-0 md:pt-0">
+    {% if not produto.ativo %}<p class="aviso aviso-info mb-4">Produto inativo: só administradores veem esta página.</p>{% endif %}
+    <h1 class="text-xl font-semibold tracking-tight md:font-display md:text-4xl">{{ produto.nome }}</h1>
+    <div class="mt-3">{{ preco(produto, 'produto') }}</div>
+
+    <form id="form-adicionar" method="post" action="{{ url_for('sacola.adicionar') }}" class="mt-5" data-adicionar>
+      {{ form.csrf_token }}
+      <input type="hidden" name="variacao_id" value="" data-variacao>
+      <input type="hidden" name="quantidade" value="1">
+
+      {% if cores %}
+      <fieldset>
+        <legend class="text-[15px] font-medium">Cor: <span data-cor-nome>{{ cor_inicial }}</span></legend>
+        <div class="mt-3 flex flex-wrap gap-3">
+          {% for cor in cores %}
+          <label title="{{ cor.nome }}">
+            <input type="radio" name="cor" value="{{ cor.nome }}" class="sr-only" {% if cor.nome == cor_inicial %}checked{% endif %} data-cor>
+            <span class="amostra-cor" style="background-color: {{ cor.hex }}"></span>
+            <span class="sr-only">{{ cor.nome }}</span>
+          </label>
+          {% endfor %}
+        </div>
+      </fieldset>
+
+      <fieldset class="mt-5">
+        <div class="flex items-baseline justify-between">
+          <legend class="text-[15px] font-medium">Tamanho</legend>
+          <button type="button" class="link text-sm" data-abrir="guia-medidas" aria-haspopup="dialog">Guia de medidas</button>
+        </div>
+        <div class="mt-3 flex flex-wrap gap-2">
+          {% for tamanho in tamanhos_produto %}
+          {% set disponivel = mapa | selectattr('cor', 'equalto', cor_inicial) | selectattr('tamanho', 'equalto', tamanho) | selectattr('estoque', 'gt', 0) | list %}
+          <label>
+            <input type="radio" name="tamanho" value="{{ tamanho }}" class="sr-only" {% if not disponivel %}disabled{% endif %} data-tamanho>
+            <span class="opcao-tamanho">{{ tamanho }}<span class="sr-only" data-esgotado>{% if not disponivel %} (esgotado){% endif %}</span></span>
+          </label>
+          {% endfor %}
+        </div>
+      </fieldset>
+      {% else %}
+      <p class="aviso aviso-info">Este produto está sem cores e tamanhos cadastrados.</p>
+      {% endif %}
+
+      <p class="mt-3 min-h-5 text-sm text-[#b3261e]" data-erro-adicionar role="alert"></p>
+    </form>
+
+    <div class="barra-acao md:static md:mt-2 md:border-0 md:bg-transparent md:p-0">
+      <button type="submit" form="form-adicionar" class="btn btn-primario w-full" data-botao-adicionar {% if not cores %}disabled{% endif %}>Adicionar à sacola</button>
+    </div>
+
+    {% if produto.descricao or produto.composicao %}
+    <section class="mt-6 border-t border-line pt-5 md:mt-8" aria-labelledby="titulo-descricao">
+      <h2 id="titulo-descricao" class="text-[15px] font-semibold">Descrição</h2>
+      {% if produto.descricao %}<p class="mt-2 text-[15px] leading-relaxed whitespace-pre-line text-ink/85">{{ produto.descricao }}</p>{% endif %}
+      {% if produto.composicao %}
+      <p class="mt-4 text-sm"><span class="font-semibold">Composição:</span> <span class="texto-secundario">{{ produto.composicao }}</span></p>
+      {% endif %}
+    </section>
+    {% endif %}
+
+    <ul class="mt-6 space-y-3 border-t border-line pt-5 text-sm">
+      <li class="flex items-center gap-3">{{ icone('pix', 'size-5 text-rose') }}<span>{{ loja.PIX_DESCONTO_PERCENTUAL }}% de desconto no Pix</span></li>
+      <li class="flex items-center gap-3">{{ icone('caminhao', 'size-5 text-rose') }}<span>Entrega para todo o Brasil</span></li>
+      <li class="flex items-center gap-3">{{ icone('loja', 'size-5 text-rose') }}<span>Retire grátis na loja</span></li>
+    </ul>
+  </div>
+</div>
+
+{% if relacionados %}
+<section class="mx-auto mt-12 max-w-6xl px-4 md:px-6" aria-labelledby="titulo-relacionados">
+  <h2 id="titulo-relacionados" class="titulo-secao md:text-xl">Você também pode gostar</h2>
+  <div class="mt-4 grid grid-cols-2 gap-x-4 gap-y-6 md:grid-cols-4 md:gap-x-6">
+    {% for item in relacionados %}{{ produto_card(item) }}{% endfor %}
+  </div>
+</section>
+{% endif %}
+
+<dialog id="guia-medidas" class="folha" aria-labelledby="titulo-guia">
+  <div class="flex items-center justify-between border-b border-line px-5 py-3">
+    <h2 id="titulo-guia" class="text-[17px] font-semibold">Guia de medidas</h2>
+    <button type="button" class="botao-icone" data-fechar aria-label="Fechar">{{ icone('fechar') }}</button>
+  </div>
+  <div class="px-5 py-5">
+    <table class="w-full text-center text-sm">
+      <caption class="sr-only">Medidas em centímetros por tamanho</caption>
+      <thead>
+        <tr class="border-b border-line">{% for coluna in loja.GUIA_MEDIDAS['colunas'] %}<th scope="col" class="pb-2 font-semibold {{ 'text-left' if loop.first }}">{{ coluna }}</th>{% endfor %}</tr>
+      </thead>
+      <tbody>
+        {% for linha in loja.GUIA_MEDIDAS['linhas'] %}
+        <tr class="border-b border-line last:border-0">{% for valor in linha %}{% if loop.first %}<th scope="row" class="py-2.5 text-left font-semibold">{{ valor }}</th>{% else %}<td class="py-2.5 texto-secundario">{{ valor }}</td>{% endif %}{% endfor %}</tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <p class="mt-4 text-xs texto-secundario">Medidas em centímetros. {{ loja.GUIA_MEDIDAS['observacao'] }}</p>
+  </div>
+</dialog>
+
+<script type="application/json" id="dados-variacoes">{{ mapa | tojson }}</script>
+{% endblock %}
+
+{% block rodape %}<div class="hidden md:block">{% include 'componentes/rodape.html' %}</div>{% endblock %}

@@ -1,0 +1,30 @@
+{% extends 'conta/base_acesso.html' %}
+{% from 'componentes/ui.html' import campo, botao %}
+{% block titulo %}Entrar · {{ loja.NOME }}{% endblock %}
+
+{% block acesso %}
+<h1 class="mt-8 text-[22px] font-bold tracking-tight">Entrar na sua conta</h1>
+<p class="mt-1 text-[15px] texto-secundario">Acompanhe seus pedidos e salve favoritos.</p>
+
+<form method="post" action="{{ url_for('conta.entrar') }}" class="mt-6 space-y-4" novalidate>
+  {{ form.csrf_token }}
+  {% if proximo %}<input type="hidden" name="next" value="{{ proximo }}">{% endif %}
+  {{ campo(form.email) }}
+  {{ campo(form.senha) }}
+  <div class="flex items-center justify-between gap-3">
+    <label class="flex items-center gap-2 text-sm">{{ form.lembrar(class_='size-4 accent-ink') }} {{ form.lembrar.label.text }}</label>
+    <a href="{{ url_for('conta.esqueci_senha') }}" class="link text-sm">Esqueci minha senha</a>
+  </div>
+  {{ botao('Entrar', classe='w-full') }}
+</form>
+
+{% if google_ativo %}
+<div class="my-5 flex items-center gap-4 text-sm texto-secundario" aria-hidden="true"><span class="h-px flex-1 bg-line"></span>ou<span class="h-px flex-1 bg-line"></span></div>
+<a href="{{ url_for('conta.google', next=proximo or None) }}" class="btn btn-contorno w-full">
+  <svg viewBox="0 0 24 24" class="size-5" aria-hidden="true"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.27-4.74 3.27-8.1z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84A11 11 0 0 0 12 23z"/><path fill="#FBBC05" d="M5.84 14.1A6.6 6.6 0 0 1 5.5 12c0-.73.13-1.44.34-2.1V7.06H2.18A11 11 0 0 0 1 12c0 1.78.43 3.45 1.18 4.94l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15A10.6 10.6 0 0 0 12 1 11 11 0 0 0 2.18 7.06l3.66 2.84C6.71 7.31 9.14 5.38 12 5.38z"/></svg>
+  Continuar com Google
+</a>
+{% endif %}
+
+<p class="mt-6 text-center text-[15px] texto-secundario">Não tem conta? <a href="{{ url_for('conta.cadastrar', next=proximo or None) }}" class="link font-semibold">Cadastre-se</a></p>
+{% endblock %}

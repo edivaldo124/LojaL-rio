@@ -1,0 +1,30 @@
+{% extends 'conta/base_acesso.html' %}
+{% from 'componentes/ui.html' import campo, botao %}
+{% block titulo %}Criar conta · {{ loja.NOME }}{% endblock %}
+
+{% block acesso %}
+<h1 class="mt-8 text-[22px] font-bold tracking-tight">Criar sua conta</h1>
+<p class="mt-1 text-[15px] texto-secundario">Leva menos de um minuto.</p>
+
+<form method="post" action="{{ url_for('conta.cadastrar') }}" class="mt-6 space-y-4" novalidate>
+  {{ form.csrf_token }}
+  {% if proximo %}<input type="hidden" name="next" value="{{ proximo }}">{% endif %}
+  {{ campo(form.nome) }}
+  {{ campo(form.email) }}
+  {{ campo(form.telefone) }}
+  {{ campo(form.senha) }}
+  {{ campo(form.confirmar) }}
+  <div>
+    <label class="flex items-start gap-2 text-sm leading-snug">{{ form.aceite(class_='mt-0.5 size-4 shrink-0 accent-ink') }}<span>Li e aceito a <a href="{{ url_for('loja.privacidade') }}" class="link" target="_blank" rel="noopener">política de privacidade</a></span></label>
+    {% if form.aceite.errors %}<p class="erro-campo">{{ form.aceite.errors[0] }}</p>{% endif %}
+  </div>
+  {{ botao('Criar conta', classe='w-full') }}
+</form>
+
+{% if google_ativo %}
+<div class="my-5 flex items-center gap-4 text-sm texto-secundario" aria-hidden="true"><span class="h-px flex-1 bg-line"></span>ou<span class="h-px flex-1 bg-line"></span></div>
+<a href="{{ url_for('conta.google', next=proximo or None) }}" class="btn btn-contorno w-full">Continuar com Google</a>
+{% endif %}
+
+<p class="mt-6 text-center text-[15px] texto-secundario">Já tem conta? <a href="{{ url_for('conta.entrar', next=proximo or None) }}" class="link font-semibold">Entrar</a></p>
+{% endblock %}

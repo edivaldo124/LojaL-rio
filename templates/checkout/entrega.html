@@ -1,0 +1,64 @@
+{% extends 'checkout/base_checkout.html' %}
+{% from 'componentes/ui.html' import opcao_radio, campo, botao %}
+{% from 'componentes/icones.html' import icone %}
+{% set voltar_para = url_for('sacola.ver') %}
+
+{% block etapa %}
+<form id="form-entrega" method="post" action="{{ url_for('checkout.entrega') }}">{{ form.csrf_token }}</form>
+
+<section aria-labelledby="titulo-endereco">
+  <h2 id="titulo-endereco" class="text-base font-semibold">Endereço de entrega</h2>
+  {% if form.endereco_id.errors %}<p class="erro-campo">{{ form.endereco_id.errors[0] }}</p>{% endif %}
+  <div class="mt-3 space-y-3" role="radiogroup" aria-labelledby="titulo-endereco">
+    {% for endereco in enderecos %}
+    {% set frete = fretes[endereco.id] %}
+    {{ opcao_radio('endereco_id', endereco.id, endereco.apelido,
+                   endereco.linha_rua ~ ' · ' ~ endereco.linha_cidade,
+                   direita=(frete.valor | brl) if frete else '',
+                   marcado=form.endereco_id.data == endereco.id, form_id='form-entrega',
+                   attrs='data-frete="' ~ ((frete.valor | brl) if frete else '') ~ '" data-prazo="' ~ (frete.prazo if frete else '') ~ '"') }}
+    {% endfor %}
+  </div>
+
+  <details class="mt-3 rounded-card border border-dashed border-line bg-white/60 open:bg-white" {% if abrir_novo_endereco or not enderecos %}open{% endif %}>
+    <summary class="flex cursor-pointer list-none items-center gap-2 px-4 py-3.5 text-[15px] font-medium [&::-webkit-details-marker]:hidden">
+      {{ icone('mais', 'size-5 text-rose') }}{{ 'Cadastrar endereço' if not enderecos else 'Adicionar outro endereço' }}
+    </summary>
+    <form method="post" action="{{ url_for('checkout.novo_endereco') }}" class="grid grid-cols-6 gap-3 px-4 pb-4" data-form-endereco novalidate>
+      {{ form_endereco.csrf_token }}
+      {{ campo(form_endereco.cep, 'col-span-3') }}
+      <p class="col-span-3 self-end pb-3 text-xs texto-secundario" data-cep-status aria-live="polite"></p>
+      {{ campo(form_endereco.rua, 'col-span-6') }}
+      {{ campo(form_endereco.numero, 'col-span-2') }}
+      {{ campo(form_endereco.complemento, 'col-span-4') }}
+      {{ campo(form_endereco.bairro, 'col-span-6') }}
+      {{ campo(form_endereco.cidade, 'col-span-4') }}
+      {{ campo(form_endereco.uf, 'col-span-2') }}
+      {{ campo(form_endereco.apelido, 'col-span-6') }}
+      {{ botao('Salvar endereço', variante='contorno', classe='col-span-6') }}
+    </form>
+  </details>
+</section>
+
+<section class="mt-7" aria-labelledby="titulo-frete">
+  <h2 id="titulo-frete" class="text-base font-semibold">Frete</h2>
+  <div class="mt-3 space-y-3" role="radiogroup" aria-labelledby="titulo-frete">
+    {% set frete_escolhido = fretes.get(form.endereco_id.data) %}
+    {{ opcao_radio('tipo_frete', 'ENTREGA', loja.NOME_ENTREGA_PADRAO,
+                   frete_escolhido.prazo if frete_escolhido else 'Escolha um endereço',
+                   direita=(frete_escolhido.valor | brl) if frete_escolhido else '',
+                   marcado=form.tipo_frete.data == 'ENTREGA', desabilitado=not enderecos, form_id='form-entrega',
+                   attrs='data-frete-entrega') }}
+    {{ opcao_radio('tipo_frete', 'RETIRADA', retirada.nome, retirada.prazo ~ ' · ' ~ loja.RETIRADA['endereco'],
+                   direita='Grátis', marcado=form.tipo_frete.data == 'RETIRADA', form_id='form-entrega') }}
+  </div>
+  {% if form.tipo_frete.errors %}<p class="erro-campo">{{ form.tipo_frete.errors[0] }}</p>{% endif %}
+</section>
+
+<div class="barra-acao md:static md:mt-8 md:border-0 md:bg-transparent md:p-0">
+  <div class="mx-auto flex max-w-3xl items-center justify-between gap-4">
+    <p class="text-sm leading-tight"><span class="block texto-secundario">Subtotal</span><span class="text-lg font-bold">{{ resumo.subtotal | brl }}</span></p>
+    <button type="submit" form="form-entrega" class="btn btn-primario px-6">Continuar</button>
+  </div>
+</div>
+{% endblock %}

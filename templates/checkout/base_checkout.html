@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+{% from 'componentes/cabecalho.html' import cabecalho, passos %}
+{% block titulo %}Finalizar compra · {{ loja.NOME }}{% endblock %}
+{% block classe_body %}pb-barra md:pb-0{% endblock %}
+{% block cabecalho %}
+{% call cabecalho('titulo', titulo='Finalizar compra', voltar=voltar_para) %}{% endcall %}
+{% endblock %}
+
+{% block conteudo %}
+<div class="mx-auto max-w-3xl px-4 pt-2 md:px-6 md:pt-8">
+  <h1 class="mb-6 hidden text-3xl font-semibold tracking-tight md:block">Finalizar compra</h1>
+  {{ passos(passo) }}
+  <div class="mt-5">{% block etapa %}{% endblock %}</div>
+</div>
+{% endblock %}
+
+{% block rodape %}<div class="hidden md:block">{% include 'componentes/rodape.html' %}</div>{% endblock %}

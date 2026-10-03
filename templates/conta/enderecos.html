@@ -1,0 +1,52 @@
+{% extends 'base.html' %}
+{% from 'componentes/cabecalho.html' import cabecalho %}
+{% from 'componentes/barra_abas.html' import barra_abas %}
+{% from 'componentes/ui.html' import campo, botao %}
+{% from 'componentes/icones.html' import icone %}
+
+{% block titulo %}Meus endereços · {{ loja.NOME }}{% endblock %}
+{% block classe_body %}pb-[84px] md:pb-0{% endblock %}
+{% block cabecalho %}{{ cabecalho('titulo', titulo='Meus endereços', voltar=url_for('conta.painel')) }}{% endblock %}
+
+{% block conteudo %}
+<div class="mx-auto max-w-2xl px-4 pt-2 md:pt-10">
+  <h1 class="hidden text-3xl font-semibold tracking-tight md:block">Meus endereços</h1>
+  <ul class="mt-2 space-y-3 md:mt-6">
+    {% for endereco in current_user.enderecos %}
+    <li class="card flex items-start gap-4 p-4">
+      {{ icone('pin', 'mt-0.5 size-5 shrink-0 text-rose') }}
+      <div class="min-w-0 flex-1 text-sm leading-relaxed">
+        <p class="text-[15px] font-medium">{{ endereco.apelido }}</p>
+        <p class="texto-secundario">{{ endereco.linha_rua }}</p>
+        <p class="texto-secundario">{{ endereco.linha_cidade }}</p>
+      </div>
+      <form method="post" action="{{ url_for('conta.remover_endereco', endereco_id=endereco.id) }}" data-confirmar="Remover o endereço {{ endereco.apelido }}?">
+        {{ form_vazio.csrf_token }}
+        <button class="botao-icone size-9 text-taupe-texto hover:text-ink" aria-label="Remover {{ endereco.apelido }}">{{ icone('lixeira', 'size-5') }}</button>
+      </form>
+    </li>
+    {% else %}
+    <li class="card p-5 text-center text-sm texto-secundario">Nenhum endereço salvo.</li>
+    {% endfor %}
+  </ul>
+
+  <section class="card mt-5 p-4" aria-labelledby="titulo-novo">
+    <h2 id="titulo-novo" class="text-base font-semibold">Novo endereço</h2>
+    <form method="post" class="mt-3 grid grid-cols-6 gap-3" data-form-endereco novalidate>
+      {{ form.csrf_token }}
+      {{ campo(form.cep, 'col-span-3') }}
+      <p class="col-span-3 self-end pb-3 text-xs texto-secundario" data-cep-status aria-live="polite"></p>
+      {{ campo(form.rua, 'col-span-6') }}
+      {{ campo(form.numero, 'col-span-2') }}
+      {{ campo(form.complemento, 'col-span-4') }}
+      {{ campo(form.bairro, 'col-span-6') }}
+      {{ campo(form.cidade, 'col-span-4') }}
+      {{ campo(form.uf, 'col-span-2') }}
+      {{ campo(form.apelido, 'col-span-6') }}
+      {{ botao('Salvar endereço', classe='col-span-6') }}
+    </form>
+  </section>
+</div>
+{% endblock %}
+
+{% block barra_inferior %}{{ barra_abas('conta') }}{% endblock %}
