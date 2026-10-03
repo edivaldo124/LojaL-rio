@@ -15,6 +15,7 @@ from modelos import Pedido
 from servicos.pagamentos import (
     ErroGateway,
     GatewaySimulado,
+    PagamentoIndisponivel,
     assinar,
     obter_gateway,
     processar_notificacao,
@@ -32,7 +33,10 @@ def webhook() -> tuple[str, int]:
     if tipo != "payment" or not data_id:
         return "ignorado", 200  # outros eventos não interessam à loja
 
-    gateway = obter_gateway()
+    try:
+        gateway = obter_gateway()
+    except PagamentoIndisponivel:
+        return "pagamentos desativados", 503
     cabecalhos = {nome.lower(): valor for nome, valor in request.headers.items()}
     if not gateway.assinatura_valida(cabecalhos, data_id):
         current_app.logger.warning("Webhook com assinatura inválida (pagamento %s)", data_id)
@@ -52,7 +56,10 @@ def webhook() -> tuple[str, int]:
 def aprovar_simulado(numero: str) -> RespostaWerkzeug:
     """Só fora de produção e sem Mercado Pago: aprova a cobrança no gateway simulado e
     dispara o webhook como o gateway faria, com assinatura."""
-    gateway = obter_gateway()
+    try:
+        gateway = obter_gateway()
+    except PagamentoIndisponivel:
+        abort(404)
     if not isinstance(gateway, GatewaySimulado) or current_app.config["EM_PRODUCAO"]:
         abort(404)
     pedido = db.session.scalar(select(Pedido).where(Pedido.numero == numero))

@@ -37,7 +37,7 @@ from modelos import Endereco, Favorito, Pedido, Sacola, StatusPedido, Usuario
 from servicos import email, senhas
 from servicos import pedidos as servico_pedidos
 from servicos import sacola as servico_sacola
-from servicos.pagamentos import obter_gateway
+from servicos.pagamentos import pix_simulado_ativo
 
 conta_bp = Blueprint("conta", __name__, url_prefix="/conta")
 
@@ -282,7 +282,7 @@ def _pedido_da_cliente(numero: str) -> Pedido:
 @login_required
 def pedido(numero: str) -> str:
     pedido = _pedido_da_cliente(numero)
-    simulado = pedido.aguardando_pagamento and obter_gateway().simulado
+    simulado = pedido.aguardando_pagamento and pix_simulado_ativo()
     return render_template(
         "conta/pedido.html",
         pedido=pedido,

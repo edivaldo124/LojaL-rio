@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from flask import Blueprint, flash, redirect, render_template, session, url_for
+from flask import Blueprint, current_app, flash, redirect, render_template, session, url_for
 from flask_login import current_user, login_required
 from werkzeug.wrappers import Response as RespostaWerkzeug
 
@@ -15,9 +15,13 @@ from modelos import FRETE_ENTREGA, FRETE_RETIRADA, PAGAMENTO_PIX, Endereco
 from servicos import pedidos as servico_pedidos
 from servicos import sacola as servico_sacola
 from servicos.frete import OpcaoFrete, cotar_entrega, opcao_por_tipo, opcao_retirada
-from servicos.pagamentos import ErroGateway, obter_gateway
+from servicos.pagamentos import ErroGateway, PagamentoIndisponivel, obter_gateway, pagamento_disponivel
 
 checkout_bp = Blueprint("checkout", __name__, url_prefix="/checkout")
+
+MSG_PAGAMENTO_INDISPONIVEL = (
+    "Os pagamentos estão temporariamente indisponíveis. Sua sacola foi mantida; tente mais tarde."
+)
 
 
 @checkout_bp.before_request
@@ -205,6 +209,7 @@ def revisao() -> str | RespostaWerkzeug:
         endereco=endereco,
         frete=opcao,
         forma_pagamento=_estado()["forma_pagamento"],
+        pagamento_indisponivel=not pagamento_disponivel(),
         form=FormVazio(),
     )
 
@@ -212,6 +217,12 @@ def revisao() -> str | RespostaWerkzeug:
 @checkout_bp.post("/confirmar")
 def confirmar() -> RespostaWerkzeug:
     if not FormVazio().validate_on_submit():
+        return redirect(url_for("checkout.revisao"))
+    try:
+        gateway = obter_gateway()  # antes de reservar estoque
+    except PagamentoIndisponivel:
+        current_app.logger.error("Checkout bloqueado: produção sem MP_ACCESS_TOKEN")
+        flash(MSG_PAGAMENTO_INDISPONIVEL, "erro")
         return redirect(url_for("checkout.revisao"))
     estado = _estado()
     sacola = servico_sacola.obter()
@@ -230,7 +241,7 @@ def confirmar() -> RespostaWerkzeug:
         return redirect(url_for("sacola.ver"))
 
     try:
-        cobranca = obter_gateway().criar_pix(pedido)
+        cobranca = gateway.criar_pix(pedido)
     except ErroGateway:
         db.session.rollback()
         servico_pedidos.cancelar(pedido, "Não foi possível gerar o Pix")

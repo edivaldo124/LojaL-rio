@@ -39,6 +39,10 @@ class ErroGateway(Exception):
     pass
 
 
+class PagamentoIndisponivel(ErroGateway):
+    """Produção sem MP_ACCESS_TOKEN: a loja funciona, mas não gera cobranças."""
+
+
 @dataclass(frozen=True)
 class CobrancaPix:
     id_gateway: str
@@ -218,8 +222,23 @@ def obter_gateway() -> Gateway:
             config["EM_PRODUCAO"],
         )
     if config["EM_PRODUCAO"]:
-        raise RuntimeError("Em produção é obrigatório configurar MP_ACCESS_TOKEN.")
+        raise PagamentoIndisponivel("Configure MP_ACCESS_TOKEN para receber pagamentos em produção.")
     return GatewaySimulado(segredo_simulado(config["SECRET_KEY"]))
+
+
+def pagamento_disponivel() -> bool:
+    try:
+        obter_gateway()
+    except PagamentoIndisponivel:
+        return False
+    return True
+
+
+def pix_simulado_ativo() -> bool:
+    try:
+        return obter_gateway().simulado
+    except PagamentoIndisponivel:
+        return False
 
 
 # ---------------------------------------------------------------- webhook
