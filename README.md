@@ -72,7 +72,7 @@ a paleta não exige recompilar.
 ruff check .            # lint
 ruff format --check .   # formatação
 mypy                    # tipos
-pytest                  # 62 testes: valores, frete, Pix, cupom, estoque, status, webhook, admin e fluxo completo
+pytest                  # 87 testes: valores, frete, Pix, cupom, estoque, webhook, admin, segurança, fotos e fluxo completo
 ```
 
 ## Variáveis de ambiente
@@ -87,6 +87,7 @@ Todas estão documentadas em [.env.example](.env.example). As principais:
 | `URL_BASE` | endereço público (webhook, sitemap, Open Graph) |
 | `MP_ACCESS_TOKEN` / `MP_WEBHOOK_SECRET` | Mercado Pago. Sem token, o Pix é simulado (só fora de produção) |
 | `PIX_EXPIRACAO_MINUTOS` | tempo para pagar antes de o pedido ser cancelado e o estoque voltar (padrão 30) |
+| `SUPABASE_URL` / `SUPABASE_SECRET_KEY` | fotos no Supabase Storage; sem elas, ficam em `static/uploads/` |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | login com Google; sem elas o botão não aparece |
 | `SMTP_*` / `EMAIL_REMETENTE` | e-mail de recuperação de senha; sem SMTP o link vai para o log |
 | `RATELIMIT_STORAGE_URI` | limite de tentativas de login; use Redis com vários workers |
@@ -111,6 +112,30 @@ O pedido vira **Pago** só por esse webhook (RN08); o admin não tem essa opçã
    confere a assinatura, consulta o pagamento na API (status, número do pedido e valor) e marca o pedido
    como **Pago**, que aparece em `/admin/pedidos`.
 
+## Deploy no Render + Supabase
+
+O banco e as fotos ficam no Supabase; o app roda no Render (região **Virginia**, junto do banco).
+
+1. **Supabase**: projeto em us-east-1 com um papel próprio para a loja e o schema `loja` (ver
+   DECISOES.md), e o bucket público `loja` no Storage. A `DATABASE_URL` usa o *pooler de sessão*:
+   `postgresql://<papel>.<ref>:<senha>@aws-0-us-east-1.pooler.supabase.com:5432/postgres?sslmode=require`.
+2. **Render** → New → Web Service, apontando para o repositório:
+   - Build: `pip install -r requirements.txt`
+   - Start: `flask db upgrade && gunicorn app:app --bind 0.0.0.0:$PORT --workers 2`
+   - Python: o `.python-version` fixa a 3.13.5.
+3. **Variáveis no Render**: `DATABASE_URL`, `SECRET_KEY`, `URL_BASE` (o endereço `https://…onrender.com`),
+   `SUPABASE_URL`, `SUPABASE_SECRET_KEY`, `AMBIENTE`, `ADMIN_EMAIL`, `ADMIN_SENHA` e, para cobrar de
+   verdade, `MP_ACCESS_TOKEN` e `MP_WEBHOOK_SECRET`.
+   - Com `AMBIENTE=producao`, o checkout exige o Mercado Pago (o Pix simulado é recusado).
+   - Com `AMBIENTE=desenvolvimento`, o Pix simulado e o botão "Simular pagamento" ficam ligados:
+     **não divulgue o endereço** nesse modo, porque qualquer pessoa poderia "pagar" um pedido.
+4. **Dados iniciais**, uma vez, do seu computador, com as mesmas variáveis do Render:
+   `DATABASE_URL=... SUPABASE_URL=... SUPABASE_SECRET_KEY=... ADMIN_SENHA=... flask seed`
+5. **Expiração dos Pix**: o plano gratuito do Render não tem cron. A lista de pedidos do admin já expira
+   os vencidos ao abrir; para rodar sozinho, crie um *Cron Job* no Render (pago) com `flask pedidos expirar`
+   a cada 5 minutos.
+6. **Mercado Pago**: cadastre o webhook `{URL_BASE}/pagamentos/webhook`.
+
 ## Deploy (VPS)
 
 1. Servidor com Python 3.12+, PostgreSQL e um proxy com HTTPS (Caddy ou Nginx + Let's Encrypt).
@@ -123,8 +148,8 @@ O pedido vira **Pago** só por esse webhook (RN08); o admin não tem essa opçã
    gunicorn app:app --workers 3 --bind 127.0.0.1:8000
    ```
    e aponte o proxy para `127.0.0.1:8000`. Sirva `/static` direto pelo proxy, se preferir.
-6. `static/uploads/` guarda as fotos enviadas pelo admin: mantenha essa pasta em disco persistente e no
-   backup (ou troque `servicos/armazenamento.py` por S3/Cloudinary).
+6. Sem Supabase Storage, `static/uploads/` guarda as fotos enviadas pelo admin: mantenha essa pasta
+   em disco persistente e no backup.
 7. Agende a expiração dos Pix vencidos (devolve o estoque) a cada 5 minutos:
    ```cron
    */5 * * * * cd /caminho/lojaLirio && .venv/bin/flask pedidos expirar

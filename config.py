@@ -65,6 +65,11 @@ class Config:
     MP_WEBHOOK_SECRET = _texto("MP_WEBHOOK_SECRET")
     PIX_EXPIRACAO_MINUTOS = _inteiro("PIX_EXPIRACAO_MINUTOS", 30)
 
+    # Supabase Storage para as fotos. Sem URL e chave secreta, as fotos vão para static/uploads.
+    SUPABASE_URL = _texto("SUPABASE_URL").rstrip("/")
+    SUPABASE_SECRET_KEY = _texto("SUPABASE_SECRET_KEY")
+    SUPABASE_BUCKET = _texto("SUPABASE_BUCKET", "loja")
+
     # Login com Google (o botão só aparece com as duas chaves)
     GOOGLE_CLIENT_ID = _texto("GOOGLE_CLIENT_ID")
     GOOGLE_CLIENT_SECRET = _texto("GOOGLE_CLIENT_SECRET")
@@ -91,5 +96,7 @@ class ConfigTeste(Config):
     MP_WEBHOOK_SECRET = ""
     GOOGLE_CLIENT_ID = ""
     GOOGLE_CLIENT_SECRET = ""
+    SUPABASE_URL = ""
+    SUPABASE_SECRET_KEY = ""
     SMTP_HOST = ""
     URL_BASE = "http://localhost"

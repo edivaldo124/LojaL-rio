@@ -198,7 +198,7 @@ def enviar_fotos(produto_id: int) -> RespostaWerkzeug:
             continue
         try:
             caminho = armazenamento.salvar_imagem(arquivo, "produtos")
-        except armazenamento.ImagemInvalida as erro:
+        except (armazenamento.ImagemInvalida, armazenamento.ErroArmazenamento) as erro:
             flash(str(erro), "erro")
             continue
         produto.imagens.append(ImagemProduto(url=caminho, ordem=proxima_ordem))
@@ -377,7 +377,7 @@ def _salvar_categoria(form: FormCategoria, categoria: Categoria) -> bool:
     if arquivo and getattr(arquivo, "filename", ""):
         try:
             novo = armazenamento.salvar_imagem(arquivo, "categorias")
-        except armazenamento.ImagemInvalida as erro:
+        except (armazenamento.ImagemInvalida, armazenamento.ErroArmazenamento) as erro:
             form.imagem.errors = [str(erro)]
             return False
         armazenamento.remover(categoria.imagem)
