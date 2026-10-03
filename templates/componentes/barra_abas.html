@@ -1,0 +1,28 @@
+{# BottomTabBar — só no celular. #}
+{% from 'componentes/icones.html' import icone %}
+{% macro barra_abas(ativa) -%}
+{% set n = contador_sacola() %}
+{% set abas = [
+  ('inicio', 'Início', url_for('loja.inicio'), 'inicio'),
+  ('buscar', 'Buscar', url_for('loja.busca'), 'busca'),
+  ('favoritos', 'Favoritos', url_for('loja.favoritos'), 'coracao'),
+  ('sacola', 'Sacola', url_for('sacola.ver'), 'sacola'),
+  ('conta', 'Conta', url_for('conta.painel'), 'usuario'),
+] %}
+<nav aria-label="Navegação principal" class="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-white md:hidden" style="padding-bottom: env(safe-area-inset-bottom)">
+  <ul class="grid h-[66px] grid-cols-5">
+    {% for chave, rotulo, href, nome_icone in abas %}
+    {% set ativo = chave == ativa %}
+    <li>
+      <a href="{{ href }}" class="relative flex h-full flex-col items-center justify-center gap-1 text-[11px] {{ 'font-semibold text-rose-texto' if ativo else 'font-medium texto-secundario' }}" {% if ativo %}aria-current="page"{% endif %}>
+        <span class="relative {{ 'text-rose' if ativo }}">
+          {{ icone(nome_icone, 'size-[22px]') }}
+          {% if chave == 'sacola' %}<span class="contador -top-1.5 -right-2.5" data-contador-sacola {% if not n %}hidden{% endif %}>{{ n }}</span>{% endif %}
+        </span>
+        {{ rotulo }}
+      </a>
+    </li>
+    {% endfor %}
+  </ul>
+</nav>
+{%- endmacro %}

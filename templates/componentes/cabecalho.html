@@ -1,0 +1,70 @@
+{# Header — no celular segue o protótipo (variante 'inicio' ou 'titulo');
+   no desktop é sempre o cabeçalho completo com navegação e busca.
+   Ações da direita no celular podem ser trocadas com {% call cabecalho(...) %}. #}
+{% from 'componentes/icones.html' import icone %}
+
+{% macro botao_sacola(classe='') -%}
+{% set n = contador_sacola() %}
+<a href="{{ url_for('sacola.ver') }}" class="botao-icone {{ classe }}" aria-label="Sacola{% if n %}, {{ n }} {{ 'peça' if n == 1 else 'peças' }}{% endif %}">
+  {{ icone('sacola') }}
+  <span class="contador" data-contador-sacola {% if not n %}hidden{% endif %}>{{ n }}</span>
+</a>
+{%- endmacro %}
+
+{% macro logo(classe='h-11 w-auto', prioridade=False) -%}
+<img src="{{ url_for('static', filename=loja.LOGOS['horizontal']) }}" alt="{{ loja.NOME }} · {{ loja.SLOGAN }}" width="651" height="275" class="{{ classe }}" {% if prioridade %}fetchpriority="high"{% endif %}>
+{%- endmacro %}
+
+{% macro cabecalho(variante='inicio', titulo='', voltar=None) -%}
+<header class="sticky top-0 z-30 bg-cream/95 backdrop-blur supports-[backdrop-filter]:bg-cream/85 md:border-b md:border-line">
+  {# Celular #}
+  <div class="flex h-14 items-center justify-between gap-2 px-2 md:hidden">
+    {% if variante == 'inicio' %}
+      <button type="button" class="botao-icone" data-abrir="menu" aria-label="Abrir menu" aria-haspopup="dialog">{{ icone('menu') }}</button>
+      <a href="{{ url_for('loja.inicio') }}" class="flex items-center" aria-label="{{ loja.NOME }}, página inicial">{{ logo('h-14 w-auto', prioridade=True) }}</a>
+    {% else %}
+      <a href="{{ voltar or url_for('loja.inicio') }}" class="botao-icone" aria-label="Voltar" data-voltar>{{ icone('voltar') }}</a>
+      <h1 class="min-w-0 flex-1 truncate text-center text-[17px] font-semibold">{{ titulo }}</h1>
+    {% endif %}
+    <div class="flex min-w-11 items-center justify-end">
+      {% if caller is defined %}{{ caller() }}{% else %}{{ botao_sacola() }}{% endif %}
+    </div>
+  </div>
+
+  {# Desktop #}
+  <div class="mx-auto hidden h-[72px] max-w-6xl items-center gap-8 px-6 md:flex">
+    <a href="{{ url_for('loja.inicio') }}" class="shrink-0" aria-label="{{ loja.NOME }}, página inicial">{{ logo('h-12 w-auto') }}</a>
+    <nav aria-label="Categorias" class="flex min-w-0 items-center gap-6 text-sm font-medium">
+      {% for categoria in categorias_menu() %}
+        {% set ativa = request.path == url_for('loja.categoria', slug=categoria.slug) %}
+        <a href="{{ url_for('loja.categoria', slug=categoria.slug) }}" class="whitespace-nowrap py-1 hover:text-rose-texto {{ 'border-b-2 border-rose' if ativa }}" {% if ativa %}aria-current="page"{% endif %}>{{ categoria.nome }}</a>
+      {% endfor %}
+      <a href="{{ url_for('loja.busca') }}" class="whitespace-nowrap py-1 hover:text-rose-texto">Ver tudo</a>
+    </nav>
+    <form action="{{ url_for('loja.busca') }}" method="get" role="search" class="relative ml-auto w-full max-w-xs">
+      <label for="busca-desktop" class="sr-only">Buscar produtos</label>
+      <input id="busca-desktop" name="q" type="search" value="{{ request.args.get('q', '') if request.endpoint == 'loja.busca' else '' }}" placeholder="Buscar vestidos, blusas…" class="campo h-11 pr-11 text-sm">
+      <button class="absolute top-0 right-0 flex size-11 items-center justify-center text-taupe-texto hover:text-ink" aria-label="Buscar">{{ icone('busca', 'size-5') }}</button>
+    </form>
+    <div class="flex shrink-0 items-center gap-1">
+      <a href="{{ url_for('loja.favoritos') }}" class="botao-icone" aria-label="Favoritos">{{ icone('coracao') }}</a>
+      <a href="{{ url_for('conta.painel') }}" class="botao-icone" aria-label="{{ 'Minha conta' if current_user.is_authenticated else 'Entrar' }}">{{ icone('usuario') }}</a>
+      {{ botao_sacola() }}
+    </div>
+  </div>
+</header>
+{%- endmacro %}
+
+{# Barra de etapas do checkout #}
+{% macro passos(atual) -%}
+{% set etapas = ['Entrega', 'Pagamento', 'Revisão'] %}
+<ol class="grid grid-cols-3 gap-2" aria-label="Etapas da compra">
+  {% for etapa in etapas %}
+  {% set n = loop.index %}
+  <li class="text-xs font-semibold {{ 'text-ink' if n <= atual else 'texto-secundario font-medium' }}" {% if n == atual %}aria-current="step"{% endif %}>
+    <span class="mb-2 block h-1 rounded-full {{ 'bg-rose' if n <= atual else 'bg-line' }}"></span>
+    {{ etapa }}
+  </li>
+  {% endfor %}
+</ol>
+{%- endmacro %}

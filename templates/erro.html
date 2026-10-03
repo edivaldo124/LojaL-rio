@@ -1,0 +1,13 @@
+{% extends 'base.html' %}
+{% from 'componentes/cabecalho.html' import cabecalho %}
+{% from 'componentes/ui.html' import botao %}
+{% block titulo %}{{ titulo }} · {{ loja.NOME }}{% endblock %}
+{% block cabecalho %}{{ cabecalho('inicio') }}{% endblock %}
+{% block conteudo %}
+<div class="mx-auto max-w-sm px-4 py-16 text-center">
+  <p class="font-display text-6xl text-rose">{{ codigo }}</p>
+  <h1 class="mt-4 text-xl font-semibold">{{ titulo }}</h1>
+  <p class="mt-2 text-sm texto-secundario">{{ texto }}</p>
+  {{ botao('Voltar ao início', href=url_for('loja.inicio'), classe='mt-8 w-full') }}
+</div>
+{% endblock %}

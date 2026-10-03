@@ -1,0 +1,32 @@
+{% from 'componentes/icones.html' import icone %}
+<dialog id="menu" class="gaveta" aria-label="Menu">
+  <div class="flex h-full flex-col">
+    <div class="flex items-center justify-between border-b border-line px-4 py-3">
+      <img src="{{ url_for('static', filename=loja.LOGOS['horizontal']) }}" alt="{{ loja.NOME }}" width="651" height="275" class="h-11 w-auto">
+      <button type="button" class="botao-icone" data-fechar aria-label="Fechar menu">{{ icone('fechar') }}</button>
+    </div>
+    <nav class="flex-1 overflow-y-auto px-2 py-3" aria-label="Menu">
+      <p class="px-3 pb-1 text-xs font-semibold tracking-wide uppercase texto-secundario">Categorias</p>
+      <ul>
+        {% for categoria in categorias_menu() %}
+        <li><a href="{{ url_for('loja.categoria', slug=categoria.slug) }}" class="flex items-center justify-between rounded-botao px-3 py-3 text-[15px] font-medium hover:bg-white">{{ categoria.nome }}{{ icone('seta-direita', 'size-4 text-taupe') }}</a></li>
+        {% endfor %}
+        <li><a href="{{ url_for('loja.busca') }}" class="flex items-center justify-between rounded-botao px-3 py-3 text-[15px] font-medium hover:bg-white">Todos os produtos{{ icone('seta-direita', 'size-4 text-taupe') }}</a></li>
+      </ul>
+      <p class="mt-4 px-3 pb-1 text-xs font-semibold tracking-wide uppercase texto-secundario">Sua conta</p>
+      <ul>
+        {% if current_user.is_authenticated %}
+        <li><a href="{{ url_for('conta.pedidos') }}" class="flex items-center gap-3 rounded-botao px-3 py-3 text-[15px] hover:bg-white">{{ icone('pacote', 'size-5') }}Meus pedidos</a></li>
+        <li><a href="{{ url_for('loja.favoritos') }}" class="flex items-center gap-3 rounded-botao px-3 py-3 text-[15px] hover:bg-white">{{ icone('coracao', 'size-5') }}Favoritos</a></li>
+        <li><a href="{{ url_for('conta.painel') }}" class="flex items-center gap-3 rounded-botao px-3 py-3 text-[15px] hover:bg-white">{{ icone('usuario', 'size-5') }}Minha conta</a></li>
+        {% if current_user.is_admin %}
+        <li><a href="{{ url_for('admin.painel') }}" class="flex items-center gap-3 rounded-botao px-3 py-3 text-[15px] hover:bg-white">{{ icone('painel', 'size-5') }}Painel da loja</a></li>
+        {% endif %}
+        {% else %}
+        <li><a href="{{ url_for('conta.entrar') }}" class="flex items-center gap-3 rounded-botao px-3 py-3 text-[15px] hover:bg-white">{{ icone('usuario', 'size-5') }}Entrar ou criar conta</a></li>
+        {% endif %}
+      </ul>
+    </nav>
+    <p class="border-t border-line px-5 py-4 text-xs texto-secundario">{{ loja.CONTATO['email'] }} · {{ loja.CONTATO['whatsapp'] }}</p>
+  </div>
+</dialog>
