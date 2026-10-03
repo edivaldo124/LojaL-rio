@@ -51,12 +51,19 @@ STATUS_EM_ANDAMENTO = (
 )
 
 
-def _destino_seguro(padrao: str) -> str:
-    destino = request.args.get("next") or request.form.get("next") or ""
+def destino_seguro(destino: str, padrao: str) -> str:
+    """Aceita só caminhos internos. Recusa '//host', '/\\host' (o navegador lê como '//host'),
+    esquemas e caracteres de controle."""
+    if not destino or "\\" in destino or any(ord(c) < 32 or ord(c) == 127 for c in destino):
+        return padrao
     partes = urlsplit(destino)
-    if destino.startswith("/") and not destino.startswith("//") and not partes.netloc:
+    if destino.startswith("/") and not destino.startswith("//") and not partes.scheme and not partes.netloc:
         return destino
     return padrao
+
+
+def _destino_seguro(padrao: str) -> str:
+    return destino_seguro(request.args.get("next") or request.form.get("next") or "", padrao)
 
 
 def _entrar(usuario: Usuario, lembrar: bool = True) -> None:
@@ -148,23 +155,46 @@ def google_retorno() -> RespostaWerkzeug:
         return redirect(url_for("conta.entrar"))
 
     dados = token.get("userinfo") or {}
-    if not dados.get("email") or not dados.get("email_verified"):
+    if not dados.get("sub") or not dados.get("email") or dados.get("email_verified") is not True:
         flash("Sua conta Google precisa ter um e-mail verificado.", "erro")
         return redirect(url_for("conta.entrar"))
 
-    usuario = db.session.scalar(select(Usuario).where(Usuario.google_sub == dados["sub"]))
-    if usuario is None:
-        usuario = _buscar_por_email(dados["email"])
-        if usuario is None:
-            usuario = Usuario(
-                nome=dados.get("name") or dados["email"].split("@")[0], email=dados["email"].lower()
-            )
-            db.session.add(usuario)
-        usuario.google_sub = dados["sub"]
-        db.session.flush()
+    usuario, senha_invalidada = usuario_do_google(dados)
     _entrar(usuario)
-    destino = session.pop("google_next", "") or url_for("conta.painel")
+    if senha_invalidada:
+        flash(
+            "Sua conta foi ligada ao Google. Por segurança, a senha anterior deixou de valer; "
+            "se quiser entrar também com senha, use “Esqueci minha senha”.",
+            "info",
+        )
+    destino = destino_seguro(session.pop("google_next", ""), url_for("conta.painel"))
     return redirect(destino)
+
+
+def usuario_do_google(dados: dict[str, Any]) -> tuple[Usuario, bool]:
+    """Acha ou cria a conta do login com Google. Devolve (usuário, senha_invalidada).
+
+    O cadastro por e-mail e senha não confirma o e-mail. Então, ao ligar o Google a uma conta que
+    já existia com o mesmo e-mail, a senha antiga é apagada e as sessões abertas caem: quem
+    cadastrou o e-mail de outra pessoa antes dela não mantém o acesso.
+    """
+    usuario = db.session.scalar(select(Usuario).where(Usuario.google_sub == dados["sub"]))
+    if usuario is not None:
+        return usuario, False
+
+    senha_invalidada = False
+    usuario = _buscar_por_email(dados["email"])
+    if usuario is None:
+        nome = dados.get("name") or dados["email"].split("@")[0]
+        usuario = Usuario(nome=nome, email=dados["email"].lower())
+        db.session.add(usuario)
+    elif usuario.senha_hash:
+        usuario.senha_hash = None
+        usuario.versao_sessao += 1
+        senha_invalidada = True
+    usuario.google_sub = dados["sub"]
+    db.session.flush()
+    return usuario, senha_invalidada
 
 
 # ---------------------------------------------------------------- senha
