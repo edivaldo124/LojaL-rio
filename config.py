@@ -22,6 +22,15 @@ def _inteiro(nome: str, padrao: int) -> int:
     return int(valor) if valor else padrao
 
 
+def url_banco(url: str) -> str:
+    """Força o driver psycopg2. O SQLAlchemy 2.1 usa o psycopg (v3) para 'postgresql://', e
+    Render, Supabase e Heroku entregam URLs sem driver (às vezes no formato 'postgres://')."""
+    for prefixo in ("postgres://", "postgresql://"):
+        if url.startswith(prefixo):
+            return "postgresql+psycopg2://" + url.removeprefix(prefixo)
+    return url
+
+
 AMBIENTE = _texto("AMBIENTE", "desenvolvimento")
 EM_PRODUCAO = AMBIENTE == "producao"
 
@@ -33,7 +42,7 @@ class Config:
 
     SECRET_KEY = _texto("SECRET_KEY") or ("" if EM_PRODUCAO else "dev-inseguro-troque-no-env")
 
-    SQLALCHEMY_DATABASE_URI = _texto("DATABASE_URL", "postgresql+psycopg2:///lojalirio")
+    SQLALCHEMY_DATABASE_URI = url_banco(_texto("DATABASE_URL", "postgresql+psycopg2:///lojalirio"))
     SQLALCHEMY_ENGINE_OPTIONS: ClassVar[dict[str, Any]] = {"pool_pre_ping": True}
 
     # Endereço público da loja (usado no webhook do Mercado Pago, sitemap e Open Graph).
@@ -89,7 +98,7 @@ class Config:
 class ConfigTeste(Config):
     TESTING = True
     SECRET_KEY = "chave-de-teste"  # noqa: S105 — só nos testes
-    SQLALCHEMY_DATABASE_URI = _texto("DATABASE_URL_TESTE", "postgresql+psycopg2:///lojalirio_test")
+    SQLALCHEMY_DATABASE_URI = url_banco(_texto("DATABASE_URL_TESTE", "postgresql+psycopg2:///lojalirio_test"))
     WTF_CSRF_ENABLED = False
     RATELIMIT_ENABLED = False
     MP_ACCESS_TOKEN = ""
