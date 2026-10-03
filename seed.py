@@ -6,10 +6,10 @@ As fotos são ilustrações geradas (silhueta da peça na cor da variação) at�
 
 from __future__ import annotations
 
+import io
 import random
 import secrets
 from datetime import UTC, datetime, timedelta
-from pathlib import Path
 
 import click
 from flask import current_app
@@ -28,7 +28,7 @@ from modelos import (
     Usuario,
     Variacao,
 )
-from servicos import senhas
+from servicos import armazenamento, senhas
 from servicos.slugs import slugify
 
 CORES = {
@@ -278,10 +278,10 @@ def ilustracao(
 
 
 def _salvar(imagem: Image.Image, nome: str) -> str:
-    pasta = Path(current_app.config["PASTA_UPLOADS"]) / "seed"
-    pasta.mkdir(parents=True, exist_ok=True)
-    imagem.save(pasta / f"{nome}.webp", "WEBP", quality=82, method=6)
-    return f"uploads/seed/{nome}.webp"
+    """Grava no Supabase Storage (produção) ou em static/uploads (desenvolvimento)."""
+    saida = io.BytesIO()
+    imagem.save(saida, "WEBP", quality=82, method=6)
+    return armazenamento.salvar_bytes(saida.getvalue(), f"seed/{nome}.webp")
 
 
 def _banner() -> str:

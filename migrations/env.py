@@ -2,6 +2,7 @@ import logging
 from logging.config import fileConfig
 
 from flask import current_app
+from sqlalchemy import text
 
 from alembic import context
 
@@ -105,6 +106,23 @@ def run_migrations_online():
 
         with context.begin_transaction():
             context.run_migrations()
+            if connection.dialect.name == "postgresql":
+                connection.execute(text(RLS_EM_TODAS_AS_TABELAS))
+
+
+# Segurança extra no Supabase: RLS ligado em toda tabela do schema da loja, inclusive as que
+# migrations futuras criarem. A loja conecta como dona das tabelas, e o dono ignora o RLS;
+# quem chegar pela API pública do Supabase fica bloqueado.
+RLS_EM_TODAS_AS_TABELAS = """
+DO $$
+DECLARE t text;
+BEGIN
+  FOR t IN SELECT tablename FROM pg_tables
+           WHERE schemaname = current_schema() AND NOT rowsecurity LOOP
+    EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY', t);
+  END LOOP;
+END $$;
+"""
 
 
 if context.is_offline_mode():

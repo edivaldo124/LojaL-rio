@@ -45,6 +45,11 @@ def create_app(config: type[Config] = Config) -> Flask:
         raise RuntimeError("Defina SECRET_KEY no .env (obrigatório em produção).")
 
     logging.basicConfig(level=logging.INFO)
+    if app.config["EM_PRODUCAO"] and not (app.config["SUPABASE_URL"] and app.config["SUPABASE_SECRET_KEY"]):
+        app.logger.warning(
+            "SUPABASE_URL/SUPABASE_SECRET_KEY ausentes: as fotos vão para o disco local, "
+            "que serviços como o Render apagam a cada deploy."
+        )
 
     db.init_app(app)
     migrate.init_app(app, db)

@@ -76,8 +76,16 @@ Bibliotecas além da stack, com justificativa:
 - **Recuperação de senha**: link com token assinado válido por 1 hora. Sem SMTP configurado, o link
   é escrito no log do servidor (desenvolvimento).
 - **Guia de medidas**: tabela em `config_loja.py` com medidas de exemplo, a revisar pela loja.
-- **Fotos**: gravadas em `static/uploads/` como WebP (máx. 1600 px). A troca para S3/Cloudinary
-  fica isolada em `servicos/armazenamento.py`.
+- **Fotos**: convertidas para WebP (máx. 1600 px). Em produção vão para o **Supabase Storage**
+  (bucket público `loja`, só WebP, até 10 MB), porque o disco do Render é apagado a cada deploy; o banco
+  guarda a URL pública. Sem `SUPABASE_URL`/`SUPABASE_SECRET_KEY`, ficam em `static/uploads/`
+  (desenvolvimento e testes). Tudo isolado em `servicos/armazenamento.py`.
+- **Banco no Supabase (03/10/2026)**: projeto `lojalirio` em us-east-1, junto do Render em Virginia.
+  A loja entra com um papel próprio (`lojalirio`), dono do schema `loja`, que a API pública do Supabase
+  não enxerga. A conexão usa o pooler de sessão (IPv4), porque o Render não tem IPv6.
+- **RLS automático**: a cada `flask db upgrade`, o `migrations/env.py` liga o RLS em toda tabela do
+  schema da loja, inclusive as criadas por migrations novas. A loja é dona das tabelas e não é afetada;
+  acessos pela API pública ficam bloqueados.
 - **Seed**: as fotos dos produtos são ilustrações geradas (silhueta da peça na cor da variação),
   porque não há fotos reais ainda. O admin padrão é `admin@exemplo.com`: domínios reservados como
   `.local` são recusados pelo validador de e-mail do login.
