@@ -1,0 +1,39 @@
+{% extends 'admin/base_admin.html' %}
+{% set secao = 'categorias' %}
+{% from 'componentes/ui.html' import botao %}
+{% from 'componentes/icones.html' import icone %}
+{% block titulo_admin %}Categorias{% endblock %}
+
+{% block admin %}
+<div class="flex flex-wrap items-center justify-between gap-4">
+  <h1 class="text-2xl font-semibold tracking-tight">Categorias</h1>
+  {{ botao('Nova categoria', href=url_for('admin.nova_categoria'), icone_nome='mais', classe='btn-pequeno') }}
+</div>
+<div class="card relative mt-5 overflow-x-auto">
+  <table class="tabela min-w-[520px]">
+    <thead><tr><th scope="col">Ordem</th><th scope="col">Categoria</th><th scope="col">Produtos</th><th scope="col"><span class="sr-only">Ações</span></th></tr></thead>
+    <tbody>
+      {% for categoria in categorias %}
+      <tr>
+        <td class="w-20 tabular-nums texto-secundario">{{ categoria.ordem }}</td>
+        <td>
+          <a href="{{ url_for('admin.editar_categoria', categoria_id=categoria.id) }}" class="flex items-center gap-3 font-medium hover:underline">
+            <span class="foto block size-10 shrink-0 rounded-full">{% if categoria.imagem %}<img src="{{ categoria.imagem | imagem }}" alt="" width="80" height="80" loading="lazy">{% endif %}</span>
+            {{ categoria.nome }}
+          </a>
+        </td>
+        <td>{{ quantidades.get(categoria.id, 0) }}</td>
+        <td class="text-right">
+          <form method="post" action="{{ url_for('admin.excluir_categoria', categoria_id=categoria.id) }}" class="inline" data-confirmar="Excluir a categoria {{ categoria.nome }}?">
+            {{ form_vazio.csrf_token }}
+            <button class="inline-flex size-8 items-center justify-center rounded-md text-taupe-texto hover:bg-[#fdf1f0] hover:text-[#b3261e] disabled:opacity-30" aria-label="Excluir {{ categoria.nome }}" {% if quantidades.get(categoria.id) %}disabled title="Categoria com produtos"{% endif %}>{{ icone('lixeira', 'size-4') }}</button>
+          </form>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="4" class="py-10 text-center texto-secundario">Nenhuma categoria.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

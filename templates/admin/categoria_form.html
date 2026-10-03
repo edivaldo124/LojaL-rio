@@ -1,0 +1,27 @@
+{% extends 'admin/base_admin.html' %}
+{% set secao = 'categorias' %}
+{% from 'componentes/ui.html' import campo, botao %}
+{% from 'componentes/icones.html' import icone %}
+{% block titulo_admin %}{{ categoria.nome if categoria else 'Nova categoria' }}{% endblock %}
+
+{% block admin %}
+<a href="{{ url_for('admin.categorias') }}" class="inline-flex items-center gap-1 text-sm texto-secundario hover:text-ink">{{ icone('voltar', 'size-4') }}Categorias</a>
+<h1 class="mt-2 text-2xl font-semibold tracking-tight">{{ categoria.nome if categoria else 'Nova categoria' }}</h1>
+<section class="card mt-6 max-w-xl p-5">
+  <form method="post" enctype="multipart/form-data" class="space-y-4" novalidate>
+    {{ form.csrf_token }}
+    {{ campo(form.nome) }}
+    {{ campo(form.ordem) }}
+    <div>
+      {{ form.imagem.label(class_='rotulo') }}
+      <div class="flex items-center gap-4">
+        {% if categoria and categoria.imagem %}<span class="foto block size-16 shrink-0 rounded-full"><img src="{{ categoria.imagem | imagem }}" alt="" width="128" height="128"></span>{% endif %}
+        {{ form.imagem(accept='image/*', class_='min-w-0 flex-1 text-sm file:mr-3 file:rounded-md file:border file:border-line file:bg-white file:px-3 file:py-2 file:text-sm file:font-medium') }}
+      </div>
+      {% if form.imagem.errors %}<p class="erro-campo">{{ form.imagem.errors[0] }}</p>{% endif %}
+      <p class="mt-1.5 text-xs texto-secundario">Aparece no círculo da página inicial. Use uma imagem quadrada.</p>
+    </div>
+    {{ botao('Salvar categoria', classe='w-full') }}
+  </form>
+</section>
+{% endblock %}

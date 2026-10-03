@@ -1,0 +1,61 @@
+{% extends 'admin/base_admin.html' %}
+{% set secao = 'painel' %}
+{% from 'componentes/ui.html' import status as etiqueta_status, botao %}
+{% from 'componentes/icones.html' import icone %}
+{% block titulo_admin %}Painel{% endblock %}
+
+{% block admin %}
+<div class="flex flex-wrap items-end justify-between gap-4">
+  <div>
+    <h1 class="text-2xl font-semibold tracking-tight">Olá, {{ current_user.primeiro_nome }}</h1>
+    <p class="text-sm texto-secundario">Resumo da loja agora.</p>
+  </div>
+  {{ botao('Novo produto', href=url_for('admin.novo_produto'), icone_nome='mais', classe='btn-pequeno') }}
+</div>
+
+<div class="mt-6 grid grid-cols-2 gap-3 md:grid-cols-4">
+  {% for chave, rotulo in [(status.AGUARDANDO_PAGAMENTO, 'Aguardando pagamento'), (status.PAGO, 'Pagos para separar'), (status.EM_SEPARACAO, 'Em separação'), (status.PRONTO_RETIRADA, 'Prontos para retirada')] %}
+  <a href="{{ url_for('admin.pedidos', status=chave.value) }}" class="card p-4 hover:ring-1 hover:ring-line">
+    <p class="text-3xl font-bold tabular-nums">{{ contagem.get(chave.value, 0) }}</p>
+    <p class="mt-1 text-[13px] texto-secundario">{{ rotulo }}</p>
+  </a>
+  {% endfor %}
+</div>
+
+<div class="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
+  <section class="card p-5" aria-labelledby="titulo-estoque">
+    <h2 id="titulo-estoque" class="flex items-center gap-2 font-semibold">{{ icone('alerta', 'size-5 text-rose') }}Estoque baixo <span class="text-sm font-normal texto-secundario">(até {{ loja.ESTOQUE_BAIXO }} unidades)</span></h2>
+    {% if estoque_baixo %}
+    <ul class="mt-3 divide-y divide-line text-sm">
+      {% for variacao in estoque_baixo %}
+      <li class="flex items-center justify-between gap-3 py-2.5">
+        <a href="{{ url_for('admin.editar_produto', produto_id=variacao.produto_id) }}#variacoes" class="min-w-0 truncate hover:underline">{{ variacao.produto.nome }} · {{ variacao.cor }} {{ variacao.tamanho }}</a>
+        <span class="etiqueta {{ 'bg-[#fdf1f0] text-[#8c1d18]' if variacao.estoque == 0 else 'bg-[#fdf3e1] text-[#7a4b00]' }}">{{ 'Esgotado' if variacao.estoque == 0 else variacao.estoque ~ ' un.' }}</span>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="mt-3 text-sm texto-secundario">Nenhuma variação com estoque baixo.</p>
+    {% endif %}
+  </section>
+
+  <section class="card p-5" aria-labelledby="titulo-recentes">
+    <div class="flex items-baseline justify-between">
+      <h2 id="titulo-recentes" class="font-semibold">Pedidos recentes</h2>
+      <a href="{{ url_for('admin.pedidos') }}" class="link text-sm">Ver todos</a>
+    </div>
+    {% if recentes %}
+    <ul class="mt-3 divide-y divide-line text-sm">
+      {% for pedido in recentes %}
+      <li><a href="{{ url_for('admin.pedido', numero=pedido.numero) }}" class="flex items-center justify-between gap-3 py-2.5 hover:underline">
+        <span class="min-w-0 truncate"><span class="font-semibold">#{{ pedido.numero }}</span> · {{ pedido.usuario.nome }} · {{ pedido.total | brl }}</span>
+        {{ etiqueta_status(pedido) }}
+      </a></li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="mt-3 text-sm texto-secundario">Nenhum pedido ainda.</p>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}
