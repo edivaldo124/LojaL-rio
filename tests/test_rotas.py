@@ -4,13 +4,14 @@ from __future__ import annotations
 
 import io
 
+import pytest
 from flask import Flask
 from flask.testing import FlaskClient
 from PIL import Image
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from extensoes import db
-from modelos import FRETE_ENTREGA, PAGAMENTO_PIX, Pedido, Sacola, StatusPedido, Variacao
+from modelos import FRETE_ENTREGA, PAGAMENTO_PIX, Pedido, Sacola, StatusPedido, Usuario, Variacao
 from servicos import pedidos as servico_pedidos
 from servicos.pagamentos import GatewaySimulado, assinar, segredo_simulado
 from tests import fabricas
@@ -251,3 +252,37 @@ def test_fluxo_completo_ate_pago_no_admin(app: Flask, cliente: FlaskClient) -> N
     admin = cliente.get(f"/admin/pedidos/{numero}").get_data(as_text=True)
     assert "status-PAGO" in admin
     assert '<option value="PAGO"' not in admin  # RN08: o admin não marca pago
+
+
+def test_producao_sem_mercado_pago_nao_quebra(
+    app: Flask, cliente: FlaskClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Sem MP_ACCESS_TOKEN em produção: a loja funciona, só não aceita pedidos."""
+    _admin_e_cliente(app)
+    with app.app_context():
+        variacao = db.session.scalars(select(Variacao)).one()
+        dona = db.session.scalars(select(Usuario).where(Usuario.email == "cliente@exemplo.com")).one()
+        sacola = fabricas.sacola(dona, [(variacao, 1)])
+        pedido = servico_pedidos.criar_pedido(dona, sacola, None, "RETIRADA", PAGAMENTO_PIX)
+        db.session.commit()
+        numero, id_variacao = pedido.numero, variacao.id  # estoque: 5 - 1 reservado = 4
+
+    fabricas.entrar(cliente, "cliente@exemplo.com")
+    cliente.post("/sacola/adicionar", data={"variacao_id": id_variacao})
+    cliente.post("/checkout/entrega", data={"tipo_frete": "RETIRADA"})
+    cliente.post("/checkout/pagamento", data={"tipo_frete": "RETIRADA", "forma_pagamento": "PIX"})
+
+    monkeypatch.setitem(app.config, "EM_PRODUCAO", True)
+    revisao = cliente.get("/checkout/revisao")
+    assert revisao.status_code == 200
+    assert "temporariamente indisponíveis" in revisao.get_data(as_text=True)
+    confirmar = cliente.post("/checkout/confirmar")
+    assert confirmar.headers["Location"].endswith("/checkout/revisao")
+    with app.app_context():
+        assert db.session.scalar(select(func.count(Pedido.id))) == 1  # só o pedido antigo
+        assert db.session.get(Variacao, id_variacao).estoque == 4  # type: ignore[union-attr]
+
+    pagina = cliente.get(f"/conta/pedidos/{numero}")
+    assert pagina.status_code == 200
+    assert "Simular pagamento" not in pagina.get_data(as_text=True)
+    assert cliente.post("/pagamentos/webhook?type=payment&data.id=1").status_code == 503
