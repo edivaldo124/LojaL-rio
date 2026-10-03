@@ -1,0 +1,111 @@
+{% extends 'base.html' %}
+{% from 'componentes/cabecalho.html' import cabecalho %}
+{% from 'componentes/ui.html' import status, botao %}
+{% from 'componentes/icones.html' import icone %}
+
+{% block titulo %}Pedido #{{ pedido.numero }} · {{ loja.NOME }}{% endblock %}
+{% block cabecalho %}{{ cabecalho('titulo', titulo='Pedido #' ~ pedido.numero, voltar=url_for('conta.pedidos')) }}{% endblock %}
+
+{% set etapas = [('PAGO', 'Pagamento confirmado'), ('EM_SEPARACAO', 'Em separação'),
+                 ('PRONTO_RETIRADA', 'Pronto para retirada') if pedido.tipo_frete == 'RETIRADA' else ('ENVIADO', 'Enviado'),
+                 ('ENTREGUE', 'Entregue')] %}
+{% set ordem_status = etapas | map(attribute=0) | list %}
+
+{% block conteudo %}
+<div class="mx-auto max-w-2xl px-4 pt-2 pb-6 md:pt-10" {% if pedido.aguardando_pagamento %}data-acompanhar-pedido="{{ url_for('conta.pedido_status', numero=pedido.numero) }}"{% endif %}>
+  {% if novo %}
+  <div class="text-center">
+    <span class="mx-auto flex size-14 items-center justify-center rounded-full bg-rose text-white">{{ icone('check', 'size-7') }}</span>
+    <h1 class="mt-4 text-[22px] font-bold tracking-tight">Pedido recebido!</h1>
+    <p class="mt-1 text-sm texto-secundario">Pague o Pix para confirmar. As peças estão reservadas para você.</p>
+  </div>
+  {% else %}
+  <div class="flex items-center justify-between gap-4">
+    <div>
+      <h1 class="text-[22px] font-bold tracking-tight">Pedido #{{ pedido.numero }}</h1>
+      <p class="text-sm texto-secundario">Feito em {{ pedido.criado_em | data }}</p>
+    </div>
+    {{ status(pedido) }}
+  </div>
+  {% endif %}
+
+  {% if pedido.aguardando_pagamento and pedido.pix_copia_cola %}
+  <section class="card mt-6 p-5 text-center" aria-labelledby="titulo-pix">
+    <h2 id="titulo-pix" class="flex items-center justify-center gap-2 text-base font-semibold">{{ icone('pix', 'size-5 text-rose') }}Pague com Pix</h2>
+    <p class="mt-1 text-3xl font-bold tracking-tight">{{ pedido.total | brl }}</p>
+    <p class="mt-1 text-sm texto-secundario">Pague até <strong class="text-ink">{{ pedido.expira_em | data('%H:%M') }}</strong> de {{ pedido.expira_em | data('%d/%m') }}. Depois disso o pedido é cancelado.</p>
+    <img src="{{ pedido.pix_qr_imagem }}" alt="QR Code do Pix do pedido {{ pedido.numero }}" width="220" height="220" class="mx-auto mt-4 size-[220px] rounded-lg border border-line bg-white p-2">
+    <label for="pix-copia-cola" class="mt-4 block text-left text-[13px] font-medium">Pix copia e cola</label>
+    <textarea id="pix-copia-cola" readonly rows="3" class="campo mt-1.5 h-auto resize-none py-2 font-mono text-xs leading-relaxed break-all">{{ pedido.pix_copia_cola }}</textarea>
+    <button type="button" class="btn btn-primario mt-3 w-full" data-copiar="pix-copia-cola">{{ icone('copiar', 'size-5') }}Copiar código Pix</button>
+    <p class="mt-3 flex items-center justify-center gap-2 text-[13px] texto-secundario" aria-live="polite"><span class="inline-block size-2 animate-pulse rounded-full bg-rose"></span>Aguardando a confirmação do pagamento…</p>
+
+    {% if simulado %}
+    <form method="post" action="{{ url_for('pagamentos.aprovar_simulado', numero=pedido.numero) }}" class="mt-5 rounded-card border border-dashed border-taupe p-4 text-left">
+      {{ form_vazio.csrf_token }}
+      <p class="text-[13px]"><strong>Ambiente de teste.</strong> Sem credenciais do Mercado Pago, o Pix é simulado. O botão abaixo aprova a cobrança e envia o webhook assinado, como o gateway faria.</p>
+      <button class="btn btn-contorno btn-pequeno mt-3 w-full">Simular pagamento aprovado</button>
+    </form>
+    {% endif %}
+  </section>
+  {% elif pedido.status == 'CANCELADO' %}
+  <section class="aviso aviso-info mt-6" aria-label="Pedido cancelado">
+    {{ icone('alerta', 'mt-0.5 size-[18px] shrink-0') }}
+    <p>Pedido cancelado{% if pedido.motivo_cancelamento %}: {{ pedido.motivo_cancelamento | lower }}{% endif %}. As peças voltaram para o estoque.</p>
+  </section>
+  {% else %}
+  <section class="card mt-6 p-5" aria-labelledby="titulo-andamento">
+    <h2 id="titulo-andamento" class="text-base font-semibold">Andamento</h2>
+    {% set atual = ordem_status.index(pedido.status) if pedido.status in ordem_status else -1 %}
+    <ol class="mt-4 space-y-4">
+      {% for chave, rotulo in etapas %}
+      {% set feito = loop.index0 <= atual %}
+      <li class="flex items-center gap-3 text-[15px] {{ 'font-medium' if feito else 'texto-secundario' }}" {% if loop.index0 == atual %}aria-current="step"{% endif %}>
+        <span class="flex size-6 items-center justify-center rounded-full {{ 'bg-rose text-white' if feito else 'border border-line bg-white' }}">{% if feito %}{{ icone('check', 'size-3.5') }}{% endif %}</span>
+        {{ rotulo }}
+        {% if chave == 'PAGO' and pedido.pago_em %}<span class="ml-auto text-[13px] font-normal texto-secundario">{{ pedido.pago_em | data('%d/%m %H:%M') }}</span>{% endif %}
+      </li>
+      {% endfor %}
+    </ol>
+    {% if pedido.rastreio %}
+    <p class="mt-5 rounded-lg bg-cream px-3 py-2 text-sm">Código de rastreio: <strong class="font-mono">{{ pedido.rastreio }}</strong></p>
+    {% endif %}
+  </section>
+  {% endif %}
+
+  <section class="card mt-4 p-4" aria-labelledby="titulo-itens">
+    <h2 id="titulo-itens" class="text-base font-semibold">Itens</h2>
+    <ul class="mt-2 divide-y divide-line">
+      {% for item in pedido.itens %}
+      <li class="flex items-center gap-3 py-3">
+        <span class="foto block h-[70px] w-14 shrink-0 rounded-lg">{% if item.imagem_url %}<img src="{{ item.imagem_url | imagem }}" alt="" width="112" height="140" loading="lazy">{% endif %}</span>
+        <div class="min-w-0 flex-1">
+          <p class="truncate text-[15px] font-medium">{{ item.produto_nome }}</p>
+          <p class="text-[13px] texto-secundario">Tam: {{ item.tamanho }} · Cor: {{ item.cor }} · {{ item.quantidade }}× {{ item.preco_unitario | brl }}</p>
+        </div>
+        <p class="text-[15px] font-semibold">{{ item.total | brl }}</p>
+      </li>
+      {% endfor %}
+    </ul>
+    <dl class="mt-2 space-y-2 border-t border-line pt-3 text-[15px]">
+      <div class="flex justify-between"><dt class="texto-secundario">Subtotal</dt><dd>{{ pedido.subtotal | brl }}</dd></div>
+      <div class="flex justify-between"><dt class="texto-secundario">Frete</dt><dd>{{ (pedido.valor_frete | brl) if pedido.valor_frete else 'Grátis' }}</dd></div>
+      {% if pedido.desconto_cupom %}<div class="flex justify-between text-rose-texto"><dt>Cupom {{ pedido.cupom_codigo }}</dt><dd>−{{ pedido.desconto_cupom | brl }}</dd></div>{% endif %}
+      {% if pedido.desconto_pix %}<div class="flex justify-between text-rose-texto"><dt>Desconto Pix</dt><dd>−{{ pedido.desconto_pix | brl }}</dd></div>{% endif %}
+      <div class="flex justify-between border-t border-line pt-2 font-bold"><dt>Total</dt><dd>{{ pedido.total | brl }}</dd></div>
+    </dl>
+  </section>
+
+  <section class="card mt-4 p-4 text-sm leading-relaxed" aria-labelledby="titulo-entrega">
+    <h2 id="titulo-entrega" class="text-base font-semibold">{{ 'Entrega' if pedido.tipo_frete == 'ENTREGA' else 'Retirada na loja' }}</h2>
+    {% if pedido.endereco %}
+    <p class="mt-1 texto-secundario">{{ pedido.endereco['linha_rua'] }}<br>{{ pedido.endereco['linha_cidade'] }}</p>
+    {% else %}
+    <p class="mt-1 texto-secundario">{{ loja.RETIRADA['endereco'] }}<br>{{ loja.RETIRADA['horario'] }}</p>
+    {% endif %}
+    <p class="mt-1 texto-secundario">{{ pedido.prazo_frete }} · Pagamento: {{ pedido.rotulo_pagamento }}</p>
+  </section>
+
+  {% if novo %}{{ botao('Continuar comprando', variante='contorno', href=url_for('loja.inicio'), classe='mt-6 w-full') }}{% endif %}
+</div>
+{% endblock %}

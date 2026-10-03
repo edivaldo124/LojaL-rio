@@ -1,0 +1,14 @@
+{% extends 'conta/base_acesso.html' %}
+{% from 'componentes/ui.html' import campo, botao %}
+{% block titulo %}Esqueci minha senha · {{ loja.NOME }}{% endblock %}
+
+{% block acesso %}
+<h1 class="mt-8 text-[22px] font-bold tracking-tight">Esqueci minha senha</h1>
+<p class="mt-1 text-[15px] texto-secundario">Enviaremos um link para você criar uma nova senha.</p>
+<form method="post" action="{{ url_for('conta.esqueci_senha') }}" class="mt-6 space-y-4" novalidate>
+  {{ form.csrf_token }}
+  {{ campo(form.email) }}
+  {{ botao('Enviar link', classe='w-full') }}
+</form>
+<p class="mt-6 text-center text-[15px]"><a href="{{ url_for('conta.entrar') }}" class="link">Voltar para o login</a></p>
+{% endblock %}

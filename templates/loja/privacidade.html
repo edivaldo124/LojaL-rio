@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+{% from 'componentes/cabecalho.html' import cabecalho %}
+{% block titulo %}Política de privacidade · {{ loja.NOME }}{% endblock %}
+{% block cabecalho %}{{ cabecalho('titulo', titulo='Privacidade') }}{% endblock %}
+
+{% block conteudo %}
+<article class="mx-auto max-w-2xl px-4 pt-4 pb-6 text-[15px] leading-relaxed md:pt-10">
+  <h1 class="text-2xl font-semibold tracking-tight md:text-3xl">Política de privacidade</h1>
+  <p class="mt-4 texto-secundario">Esta política explica quais dados a {{ loja.NOME }} coleta, por que coleta e como você pode exercer os seus direitos previstos na Lei Geral de Proteção de Dados (Lei 13.709/2018).</p>
+
+  <h2 class="mt-8 text-lg font-semibold">Dados que coletamos</h2>
+  <ul class="mt-2 list-disc space-y-1 pl-5">
+    <li>Cadastro: nome, e-mail, celular (opcional) e senha, guardada só como hash.</li>
+    <li>Entrega: endereços que você cadastra.</li>
+    <li>Pedidos: itens, valores, forma de pagamento e status.</li>
+    <li>Login com Google: nome, e-mail e o identificador da conta Google.</li>
+  </ul>
+
+  <h2 class="mt-8 text-lg font-semibold">Pagamentos</h2>
+  <p class="mt-2">Os pagamentos são processados pelo Mercado Pago. Dados de cartão nunca passam pelos servidores da loja.</p>
+
+  <h2 class="mt-8 text-lg font-semibold">Cookies</h2>
+  <p class="mt-2">{{ loja.TEXTOS['aviso_cookies'] }}</p>
+
+  <h2 class="mt-8 text-lg font-semibold">Seus direitos</h2>
+  <p class="mt-2">Você pode consultar, corrigir ou excluir os seus dados. A exclusão da conta fica em <a href="{{ url_for('conta.painel') }}" class="link">Minha conta</a>; os registros dos pedidos são mantidos pelo prazo exigido pela legislação fiscal, sem os seus dados de contato.</p>
+
+  <h2 class="mt-8 text-lg font-semibold">Contato</h2>
+  <p class="mt-2">Dúvidas sobre privacidade: {{ loja.CONTATO['email'] }}.</p>
+</article>
+{% endblock %}

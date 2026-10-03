@@ -1,0 +1,131 @@
+{% extends 'base.html' %}
+{% from 'componentes/cabecalho.html' import cabecalho %}
+{% from 'componentes/barra_abas.html' import barra_abas %}
+{% from 'componentes/produto_card.html' import produto_card %}
+{% from 'componentes/ui.html' import chip, botao %}
+{% from 'componentes/icones.html' import icone %}
+
+{% block titulo %}{{ titulo }} · {{ loja.NOME }}{% endblock %}
+{% block descricao %}{% if categoria %}{{ categoria.nome }} femininos na {{ loja.NOME }}: {{ paginacao.total }} peças com envio para todo o Brasil.{% else %}{{ loja.DESCRICAO }}{% endif %}{% endblock %}
+{% block classe_body %}pb-[84px] md:pb-0{% endblock %}
+{% block cabecalho %}{{ cabecalho('titulo', titulo=titulo) }}{% endblock %}
+
+{% macro args_pagina(n) -%}
+{{ url_for(request.endpoint, **dict(request.view_args, **dict(request.args.to_dict(flat=False), pagina=n))) }}
+{%- endmacro %}
+
+{% block conteudo %}
+{% set url_limpa = url_for(request.endpoint, q=termo, **request.view_args) if termo else url_for(request.endpoint, **request.view_args) %}
+<div class="mx-auto max-w-6xl px-4 md:px-6">
+  <h1 class="hidden pt-8 text-3xl font-semibold tracking-tight md:block">{{ titulo }}</h1>
+
+  {% if request.endpoint == 'loja.busca' %}
+  <form action="{{ url_for('loja.busca') }}" method="get" role="search" class="relative mt-1 md:hidden">
+    <label for="busca-catalogo" class="sr-only">Buscar produtos</label>
+    <input id="busca-catalogo" name="q" type="search" value="{{ termo }}" placeholder="Buscar vestidos, blusas, saias…" class="campo h-[46px] pr-12">
+    <button class="absolute top-0 right-0 flex size-[46px] items-center justify-center text-taupe-texto" aria-label="Buscar">{{ icone('busca', 'size-5') }}</button>
+  </form>
+  {% endif %}
+
+  <div class="rolagem-horizontal -mx-4 mt-3 flex gap-2 overflow-x-auto px-4 pb-1 md:mx-0 md:mt-5 md:px-0">
+    {{ chip('Filtrar', ativo=True, icone_nome='filtro', contagem=filtros_ativos, attrs='data-abrir="filtros" aria-haspopup="dialog"') }}
+    {{ chip(ordenacoes[ordem] if ordem != 'recentes' else 'Ordenar', ativo=False, attrs='data-abrir="filtros" data-foco="filtro-ordem" aria-haspopup="dialog"') }}
+    {{ chip('Tamanho' ~ (': ' ~ tamanhos | join(', ') if tamanhos else ''), attrs='data-abrir="filtros" data-foco="filtro-tamanho" aria-haspopup="dialog"') }}
+    {{ chip('Cor' ~ (': ' ~ cores | join(', ') if cores else ''), attrs='data-abrir="filtros" data-foco="filtro-cor" aria-haspopup="dialog"') }}
+  </div>
+
+  <p class="mt-3 text-sm texto-secundario" aria-live="polite">{{ paginacao.total }} {{ 'produto' if paginacao.total == 1 else 'produtos' }}</p>
+
+  {% if produtos %}
+  <div class="mt-4 grid grid-cols-2 gap-x-4 gap-y-6 md:grid-cols-3 md:gap-x-6 lg:grid-cols-4">
+    {% for produto in produtos %}{{ produto_card(produto, prioridade=loop.index <= 2) }}{% endfor %}
+  </div>
+  {% else %}
+  <div class="mt-6 rounded-card bg-white px-6 py-10 text-center">
+    <p class="font-medium">Nenhuma peça encontrada.</p>
+    <p class="mt-1 text-sm texto-secundario">Tente outra busca ou tire alguns filtros.</p>
+    {% if filtros_ativos %}<a href="{{ url_limpa }}" class="btn btn-contorno btn-pequeno mt-4">Limpar filtros</a>{% endif %}
+  </div>
+  {% endif %}
+
+  {% if paginacao.pages > 1 %}
+  <nav class="mt-8 flex items-center justify-between gap-4 text-sm" aria-label="Paginação">
+    {% if paginacao.has_prev %}<a href="{{ args_pagina(paginacao.prev_num) }}" class="btn btn-contorno btn-pequeno">{{ icone('voltar', 'size-4') }}Anterior</a>{% else %}<span></span>{% endif %}
+    <span class="texto-secundario">Página {{ paginacao.page }} de {{ paginacao.pages }}</span>
+    {% if paginacao.has_next %}<a href="{{ args_pagina(paginacao.next_num) }}" class="btn btn-contorno btn-pequeno">Próxima{{ icone('seta-direita', 'size-4') }}</a>{% else %}<span></span>{% endif %}
+  </nav>
+  {% endif %}
+</div>
+
+<dialog id="filtros" class="folha" aria-labelledby="titulo-filtros">
+  <form method="get" action="{{ url_for(request.endpoint, **request.view_args) }}">
+    {% if termo %}<input type="hidden" name="q" value="{{ termo }}">{% endif %}
+    <div class="sticky top-0 z-10 flex items-center justify-between border-b border-line bg-white px-5 py-3">
+      <h2 id="titulo-filtros" class="text-[17px] font-semibold">Filtrar e ordenar</h2>
+      <button type="button" class="botao-icone" data-fechar aria-label="Fechar">{{ icone('fechar') }}</button>
+    </div>
+
+    <div class="space-y-7 px-5 py-5">
+      <fieldset id="filtro-ordem">
+        <legend class="mb-3 text-sm font-semibold">Ordenar por</legend>
+        <div class="flex flex-wrap gap-2">
+          {% for chave, rotulo in ordenacoes.items() %}
+          <label class="cursor-pointer">
+            <input type="radio" name="ordem" value="{{ chave }}" class="peer sr-only" {% if chave == ordem %}checked{% endif %}>
+            <span class="chip peer-checked:border-ink peer-checked:bg-ink peer-checked:text-white peer-focus-visible:outline-2 peer-focus-visible:outline-ink">{{ rotulo }}</span>
+          </label>
+          {% endfor %}
+        </div>
+      </fieldset>
+
+      <fieldset id="filtro-tamanho">
+        <legend class="mb-3 text-sm font-semibold">Tamanho</legend>
+        <div class="flex flex-wrap gap-2">
+          {% for tamanho in loja.TAMANHOS %}
+          <label>
+            <input type="checkbox" name="tamanho" value="{{ tamanho }}" class="sr-only" {% if tamanho in tamanhos %}checked{% endif %}>
+            <span class="opcao-tamanho">{{ tamanho }}</span>
+          </label>
+          {% endfor %}
+        </div>
+      </fieldset>
+
+      {% if cores_disponiveis %}
+      <fieldset id="filtro-cor">
+        <legend class="mb-3 text-sm font-semibold">Cor</legend>
+        <div class="flex flex-wrap gap-x-4 gap-y-3">
+          {% for nome, hex in cores_disponiveis %}
+          <label class="flex cursor-pointer items-center gap-2 text-sm">
+            <input type="checkbox" name="cor" value="{{ nome }}" class="sr-only" {% if nome in cores %}checked{% endif %}>
+            <span class="amostra-cor" style="background-color: {{ hex }}"></span>
+            {{ nome }}
+          </label>
+          {% endfor %}
+        </div>
+      </fieldset>
+      {% endif %}
+
+      <fieldset>
+        <legend class="mb-3 text-sm font-semibold">Faixa de preço (R$)</legend>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label for="preco_min" class="rotulo font-normal texto-secundario">Mínimo</label>
+            <input id="preco_min" name="preco_min" type="number" min="0" step="1" inputmode="numeric" value="{{ preco_min if preco_min is not none }}" class="campo" placeholder="0">
+          </div>
+          <div>
+            <label for="preco_max" class="rotulo font-normal texto-secundario">Máximo</label>
+            <input id="preco_max" name="preco_max" type="number" min="0" step="1" inputmode="numeric" value="{{ preco_max if preco_max is not none }}" class="campo" placeholder="500">
+          </div>
+        </div>
+      </fieldset>
+    </div>
+
+    <div class="sticky bottom-0 grid grid-cols-2 gap-3 border-t border-line bg-white px-5 py-3" style="padding-bottom: max(0.75rem, env(safe-area-inset-bottom))">
+      <a href="{{ url_limpa }}" class="btn btn-contorno">Limpar</a>
+      {{ botao('Ver resultados') }}
+    </div>
+  </form>
+</dialog>
+{% endblock %}
+
+{% block barra_inferior %}{{ barra_abas('buscar' if request.endpoint == 'loja.busca' else 'inicio') }}{% endblock %}

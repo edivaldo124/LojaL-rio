@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+{% from 'componentes/cabecalho.html' import cabecalho %}
+{% from 'componentes/barra_abas.html' import barra_abas %}
+{% from 'componentes/produto_card.html' import produto_card %}
+{% from 'componentes/ui.html' import botao %}
+{% from 'componentes/icones.html' import icone %}
+
+{% block titulo %}Favoritos · {{ loja.NOME }}{% endblock %}
+{% block classe_body %}pb-[84px] md:pb-0{% endblock %}
+{% block cabecalho %}{{ cabecalho('titulo', titulo='Favoritos') }}{% endblock %}
+
+{% block conteudo %}
+<div class="mx-auto max-w-6xl px-4 pt-2 md:px-6 md:pt-8">
+  <h1 class="hidden text-3xl font-semibold tracking-tight md:block">Favoritos</h1>
+  {% if produtos %}
+  <div class="mt-4 grid grid-cols-2 gap-x-4 gap-y-6 md:mt-6 md:grid-cols-4 md:gap-x-6">
+    {% for produto in produtos %}{{ produto_card(produto) }}{% endfor %}
+  </div>
+  {% else %}
+  <div class="mx-auto mt-10 max-w-sm text-center">
+    <span class="mx-auto flex size-20 items-center justify-center rounded-full bg-white text-rose">{{ icone('coracao', 'size-9') }}</span>
+    {% if current_user.is_authenticated %}
+    <h2 class="mt-5 text-lg font-semibold">Nenhum favorito ainda</h2>
+    <p class="mt-1 text-sm texto-secundario">Toque no coração de uma peça para guardá-la aqui.</p>
+    {{ botao('Ver novidades', href=url_for('loja.busca'), classe='mt-6 w-full') }}
+    {% else %}
+    <h2 class="mt-5 text-lg font-semibold">Guarde as peças que você amou</h2>
+    <p class="mt-1 text-sm texto-secundario">Entre na sua conta para ver e salvar favoritos.</p>
+    {{ botao('Entrar', href=url_for('conta.entrar', next=url_for('loja.favoritos')), classe='mt-6 w-full') }}
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block barra_inferior %}{{ barra_abas('favoritos') }}{% endblock %}
