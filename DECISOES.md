@@ -67,6 +67,12 @@ Bibliotecas além da stack, com justificativa:
 - **Cartão e boleto**: aparecem no checkout como "em breve", desabilitados, até a Fase 2.
 - **Favoritos**: o coração do produto e a aba Favoritos já funcionam (o modelo está no schema e os
   dois aparecem no protótipo da Fase 1).
+- **Login com Google em conta já existente**: o cadastro por e-mail e senha não confirma o e-mail, então
+  alguém poderia cadastrar o e-mail de outra pessoa antes dela. Quando o Google (com e-mail verificado)
+  é ligado a uma conta que já tinha senha, a senha antiga é apagada e as sessões abertas caem; a dona
+  do e-mail cria outra senha por "Esqueci minha senha", se quiser.
+- **Destino após o login (`next`)**: só caminhos internos; `//host`, `/\host`, esquemas e caracteres
+  de controle voltam para a página padrão.
 - **Recuperação de senha**: link com token assinado válido por 1 hora. Sem SMTP configurado, o link
   é escrito no log do servidor (desenvolvimento).
 - **Guia de medidas**: tabela em `config_loja.py` com medidas de exemplo, a revisar pela loja.
