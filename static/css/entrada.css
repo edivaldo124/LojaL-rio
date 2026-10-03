@@ -1,0 +1,289 @@
+/* Fonte do Tailwind. Compile com `npm run css` (gera static/css/app.css).
+   As cores abaixo são o padrão; config_loja.py as sobrescreve em tempo de execução. */
+@import "tailwindcss";
+
+@source "../../templates";
+@source "../js";
+
+@font-face {
+  font-family: "Inter Variable";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 900;
+  src: url("../fonts/inter-latin-wght-normal.woff2") format("woff2-variations");
+}
+@font-face {
+  font-family: "Playfair Display";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 500;
+  src: url("../fonts/playfair-display-latin-500-normal.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Playfair Display";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 600;
+  src: url("../fonts/playfair-display-latin-600-normal.woff2") format("woff2");
+}
+
+@theme {
+  --color-rose: #c97b84;
+  --color-rose-texto: #a4545f;
+  --color-ink: #2b2b2b;
+  --color-cream: #faf7f5;
+  --color-taupe: #8a8380;
+  --color-taupe-texto: #706966;
+  --color-line: #e4ddd9;
+  --color-placeholder: #e8dfda;
+
+  --font-sans: "Inter Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: "Playfair Display", Georgia, "Times New Roman", serif;
+
+  --radius-botao: 10px;
+  --radius-card: 12px;
+  --radius-chip: 20px;
+}
+
+@layer base {
+  html {
+    -webkit-tap-highlight-color: transparent;
+    scroll-padding-top: 5rem;
+  }
+  body {
+    @apply bg-cream font-sans text-ink antialiased;
+  }
+  ::placeholder {
+    color: var(--color-taupe-texto);
+    opacity: 1;
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-ink);
+    outline-offset: 2px;
+  }
+  [hidden] {
+    display: none !important;
+  }
+  dialog::backdrop {
+    background: rgb(43 43 43 / 0.45);
+  }
+}
+
+@layer components {
+  /* Button */
+  .btn {
+    @apply inline-flex min-h-12 items-center justify-center gap-2 rounded-botao px-5 text-[15px] font-semibold transition-colors duration-150 select-none disabled:cursor-not-allowed disabled:opacity-45;
+  }
+  .btn-primario {
+    @apply bg-ink text-white hover:bg-black;
+  }
+  .btn-contorno {
+    @apply border border-ink bg-transparent text-ink hover:bg-white;
+  }
+  .btn-pequeno {
+    @apply min-h-10 px-4 text-sm;
+  }
+  .btn-perigo {
+    @apply border border-[#b3261e] bg-transparent text-[#b3261e] hover:bg-[#fbeeed];
+  }
+
+  /* Input */
+  .campo {
+    @apply block h-12 w-full rounded-botao border border-line bg-white px-4 text-[15px] text-ink transition-colors outline-none focus:border-ink;
+  }
+  textarea.campo {
+    @apply h-auto py-3 leading-relaxed;
+  }
+  select.campo {
+    @apply appearance-none bg-[length:16px] bg-[right_14px_center] bg-no-repeat pr-10;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%232B2B2B' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  }
+  .campo-erro {
+    @apply border-[#b3261e];
+  }
+  .rotulo {
+    @apply mb-1.5 block text-[13px] font-medium text-ink;
+  }
+  .erro-campo {
+    @apply mt-1.5 text-[13px] text-[#b3261e];
+  }
+
+  /* Chip */
+  .chip {
+    @apply inline-flex h-[34px] shrink-0 items-center gap-1.5 rounded-chip border border-line bg-white px-4 text-sm font-medium text-ink transition-colors hover:border-ink;
+  }
+  .chip-ativo {
+    @apply border-ink bg-ink text-white;
+  }
+
+  /* Card e textos */
+  .card {
+    @apply rounded-card bg-white;
+  }
+  .link {
+    @apply font-medium text-rose-texto underline-offset-2 hover:underline;
+  }
+  .texto-secundario {
+    @apply text-taupe-texto;
+  }
+  .titulo-secao {
+    @apply text-lg font-semibold text-ink;
+  }
+
+  /* Ícone quadrado do cabeçalho */
+  .botao-icone {
+    @apply relative inline-flex size-11 items-center justify-center rounded-botao text-ink transition-colors hover:bg-white;
+  }
+  .contador {
+    @apply absolute top-1 right-0.5 inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-rose px-1 text-[11px] leading-none font-semibold text-white;
+  }
+
+  /* Imagem carregando */
+  .foto {
+    @apply overflow-hidden bg-placeholder;
+  }
+  .foto > img {
+    @apply size-full object-cover;
+  }
+
+  /* Barra de ação fixa (produto, sacola, checkout) */
+  .barra-acao {
+    @apply fixed inset-x-0 bottom-0 z-30 border-t border-line bg-white px-4 pt-3;
+    padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+  }
+
+  /* Tamanho (PP…GG) */
+  .opcao-tamanho {
+    @apply flex h-[42px] min-w-[52px] cursor-pointer items-center justify-center rounded-lg border border-line bg-white px-3 text-[15px] font-medium transition-colors hover:border-ink;
+  }
+  input:checked + .opcao-tamanho {
+    @apply border-ink bg-ink text-white;
+  }
+  input:disabled + .opcao-tamanho {
+    @apply cursor-not-allowed border-line bg-cream text-taupe line-through hover:border-line;
+  }
+  input:focus-visible + .opcao-tamanho,
+  input:focus-visible + .amostra-cor {
+    outline: 2px solid var(--color-ink);
+    outline-offset: 2px;
+  }
+
+  /* Amostra de cor */
+  .amostra-cor {
+    @apply block size-[30px] cursor-pointer rounded-full ring-1 ring-black/10 ring-inset;
+  }
+  input:checked + .amostra-cor {
+    box-shadow:
+      0 0 0 2px var(--color-cream),
+      0 0 0 4px var(--color-ink);
+  }
+
+  /* RadioOption */
+  .opcao-radio {
+    @apply flex cursor-pointer items-center gap-4 rounded-card border border-line bg-white px-4 py-3.5 transition-colors hover:border-taupe;
+  }
+  .opcao-radio:has(input:checked) {
+    @apply border-ink;
+    box-shadow: inset 0 0 0 0.5px var(--color-ink);
+  }
+  .opcao-radio:has(input:disabled) {
+    @apply cursor-not-allowed opacity-60 hover:border-line;
+  }
+  .opcao-radio:has(input:focus-visible) {
+    outline: 2px solid var(--color-ink);
+    outline-offset: 2px;
+  }
+  .radio {
+    @apply relative grid size-5 shrink-0 appearance-none place-content-center rounded-full border-[1.5px] border-taupe bg-white;
+  }
+  .radio:checked {
+    @apply border-ink bg-ink;
+  }
+  .radio:checked::after {
+    content: "";
+    @apply size-2 rounded-full bg-white;
+  }
+  .radio:focus-visible {
+    outline: none;
+  }
+
+  /* Galeria (swipe) */
+  .galeria {
+    @apply flex snap-x snap-mandatory overflow-x-auto;
+    scrollbar-width: none;
+  }
+  .galeria::-webkit-scrollbar {
+    display: none;
+  }
+  .galeria > * {
+    @apply w-full shrink-0 snap-center;
+  }
+
+  .rolagem-horizontal {
+    scrollbar-width: none;
+  }
+  .rolagem-horizontal::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Folha inferior (dialog) */
+  .folha {
+    @apply m-0 mt-auto max-h-[88dvh] w-full max-w-none overflow-y-auto rounded-t-2xl bg-white p-0 text-ink md:m-auto md:max-w-lg md:rounded-2xl;
+  }
+  .gaveta {
+    @apply m-0 h-dvh max-h-none w-[86%] max-w-sm bg-cream p-0 text-ink;
+  }
+
+  /* Aviso (flash) */
+  .aviso {
+    @apply flex items-start gap-3 rounded-card border px-4 py-3 text-sm;
+  }
+  .aviso-sucesso {
+    @apply border-[#cfe3d3] bg-[#f1f8f2] text-[#1e5b2c];
+  }
+  .aviso-erro {
+    @apply border-[#f1c9c6] bg-[#fdf1f0] text-[#8c1d18];
+  }
+  .aviso-info {
+    @apply border-line bg-white text-ink;
+  }
+
+  /* Etiqueta de status */
+  .etiqueta {
+    @apply inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold whitespace-nowrap;
+  }
+  .status-AGUARDANDO_PAGAMENTO {
+    @apply bg-[#fdf3e1] text-[#7a4b00];
+  }
+  .status-PAGO {
+    @apply bg-[#e7f3ea] text-[#1e5b2c];
+  }
+  .status-EM_SEPARACAO,
+  .status-PRONTO_RETIRADA,
+  .status-ENVIADO {
+    @apply bg-[#e8eef8] text-[#1f3f73];
+  }
+  .status-ENTREGUE {
+    @apply bg-ink text-white;
+  }
+  .status-CANCELADO {
+    @apply bg-[#f3f0ee] text-taupe-texto;
+  }
+
+  /* Tabelas do admin */
+  .tabela {
+    @apply w-full border-collapse text-left text-sm;
+  }
+  .tabela th {
+    @apply border-b border-line px-3 py-2.5 text-xs font-semibold tracking-wide text-taupe-texto uppercase;
+  }
+  .tabela td {
+    @apply border-b border-line px-3 py-3 align-middle;
+  }
+}
+
+@layer utilities {
+  .pb-barra {
+    padding-bottom: calc(5.5rem + env(safe-area-inset-bottom));
+  }
+}

@@ -1,0 +1,23 @@
+{# ProductCard — foto 3:4, nome e preço. #}
+{% from 'componentes/ui.html' import preco %}
+{% macro produto_card(produto, prioridade=False) -%}
+{% set imagem = produto.imagem_principal %}
+<article>
+  <a href="{{ url_for('loja.produto', slug=produto.slug) }}" class="group block rounded-card">
+    <div class="foto relative aspect-[3/4] rounded-card">
+      {% if imagem %}
+      <img src="{{ imagem.url | imagem }}" alt="{{ imagem.texto_alternativo }}" width="600" height="800"
+           {% if prioridade %}fetchpriority="high"{% else %}loading="lazy"{% endif %} decoding="async"
+           class="transition-transform duration-500 group-hover:scale-[1.03]">
+      {% else %}
+      <span class="flex size-full items-center justify-center text-sm texto-secundario">Foto</span>
+      {% endif %}
+      {% if produto.em_promocao %}
+      <span class="absolute top-2 left-2 rounded-full bg-white/95 px-2 py-0.5 text-[11px] font-semibold text-rose-texto">−{{ ((1 - produto.preco_atual / produto.preco) * 100) | round | int }}%</span>
+      {% endif %}
+    </div>
+    <h3 class="mt-2 text-sm leading-snug group-hover:underline">{{ produto.nome }}</h3>
+    {{ preco(produto) }}
+  </a>
+</article>
+{%- endmacro %}

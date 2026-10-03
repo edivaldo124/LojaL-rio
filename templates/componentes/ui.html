@@ -1,0 +1,80 @@
+{# Componentes do design system: Button, Input, Chip, RadioOption, PriceTag, QuantityStepper. #}
+{% from 'componentes/icones.html' import icone %}
+
+{# Button — variante: primario | contorno. Com href vira link. #}
+{% macro botao(texto, variante='primario', tipo='submit', href=None, classe='', icone_nome=None, attrs='') -%}
+{% set classes = 'btn btn-' ~ variante ~ ' ' ~ classe %}
+{% if href %}
+<a href="{{ href }}" class="{{ classes }}" {{ attrs | safe }}>{% if icone_nome %}{{ icone(icone_nome, 'size-5') }}{% endif %}{{ texto }}</a>
+{% else %}
+<button type="{{ tipo }}" class="{{ classes }}" {{ attrs | safe }}>{% if icone_nome %}{{ icone(icone_nome, 'size-5') }}{% endif %}{{ texto }}</button>
+{% endif %}
+{%- endmacro %}
+
+{# Input — recebe um campo WTForms e mostra rótulo e erros. #}
+{% macro campo(field, classe='', rotulo=True, extra=None) -%}
+<div class="{{ classe }}">
+  {% if rotulo %}{{ field.label(class_='rotulo') }}{% endif %}
+  {% set classes = 'campo' ~ (' campo-erro' if field.errors else '') %}
+  {% if field.errors %}
+    {{ field(class_=classes, **{'aria-invalid': 'true', 'aria-describedby': field.id ~ '-erro'}) }}
+    <p id="{{ field.id }}-erro" class="erro-campo">{{ field.errors[0] }}</p>
+  {% else %}
+    {{ field(class_=classes) }}
+  {% endif %}
+  {% if extra %}{{ extra }}{% endif %}
+</div>
+{%- endmacro %}
+
+{# Chip — botão (abre algo) ou link. #}
+{% macro chip(texto, ativo=False, href=None, icone_nome=None, contagem=0, attrs='') -%}
+{% set classes = 'chip' ~ (' chip-ativo' if ativo else '') %}
+{% if href %}<a href="{{ href }}" class="{{ classes }}" {{ attrs | safe }}>{% else %}<button type="button" class="{{ classes }}" {{ attrs | safe }}>{% endif %}
+  {% if icone_nome %}{{ icone(icone_nome, 'size-4') }}{% endif %}{{ texto }}{% if contagem %}<span class="ml-0.5 inline-flex size-5 items-center justify-center rounded-full {{ 'bg-white text-ink' if ativo else 'bg-ink text-white' }} text-[11px] font-semibold">{{ contagem }}</span>{% endif %}
+{% if href %}</a>{% else %}</button>{% endif %}
+{%- endmacro %}
+
+{# RadioOption — cartão com rádio, título, subtítulo e valor à direita. #}
+{% macro opcao_radio(nome, valor, titulo, subtitulo='', direita='', marcado=False, desabilitado=False, form_id=None, attrs='') -%}
+<label class="opcao-radio">
+  <input type="radio" class="radio" name="{{ nome }}" value="{{ valor }}" {% if marcado %}checked{% endif %} {% if desabilitado %}disabled{% endif %} {% if form_id %}form="{{ form_id }}"{% endif %} {{ attrs | safe }}>
+  <span class="min-w-0 flex-1">
+    <span class="block text-[15px] font-medium leading-snug">{{ titulo }}</span>
+    {% if subtitulo %}<span class="mt-0.5 block text-[13px] leading-snug texto-secundario">{{ subtitulo }}</span>{% endif %}
+  </span>
+  {% if direita %}<span class="shrink-0 text-[15px] font-semibold">{{ direita }}</span>{% endif %}
+</label>
+{%- endmacro %}
+
+{# PriceTag — preço atual, "de" riscado e parcelamento. #}
+{% macro preco(produto, variante='card') -%}
+{% if variante == 'produto' %}
+<div>
+  <p class="flex flex-wrap items-baseline gap-x-3">
+    <span class="text-[22px] font-bold tracking-tight">{{ produto.preco_atual | brl }}</span>
+    {% if produto.em_promocao %}<s class="text-[15px] texto-secundario"><span class="sr-only">De </span>{{ produto.preco | brl }}</s>{% endif %}
+  </p>
+  <p class="mt-1.5 text-sm texto-secundario">ou {{ loja.PARCELAS_SEM_JUROS }}x de {{ (produto.preco_atual | parcela(loja.PARCELAS_SEM_JUROS)) | brl }} sem juros</p>
+</div>
+{% else %}
+<p class="mt-0.5 flex flex-wrap items-baseline gap-x-2">
+  <span class="text-[15px] font-bold">{{ produto.preco_atual | brl }}</span>
+  {% if produto.em_promocao %}<s class="text-xs texto-secundario"><span class="sr-only">De </span>{{ produto.preco | brl }}</s>{% endif %}
+</p>
+{% endif %}
+{%- endmacro %}
+
+{# QuantityStepper — cada botão envia a nova quantidade (funciona sem JavaScript). #}
+{% macro quantidade(item, form) -%}
+<form method="post" action="{{ url_for('sacola.quantidade', item_id=item.id) }}" class="inline-flex h-[34px] items-center rounded-lg border border-line bg-white">
+  {{ form.csrf_token }}
+  <button type="submit" name="quantidade" value="{{ item.quantidade - 1 }}" class="flex h-full w-9 items-center justify-center rounded-l-lg hover:bg-cream" aria-label="Diminuir quantidade de {{ item.variacao.produto.nome }}">{{ icone('menos', 'size-4') }}</button>
+  <span class="w-7 text-center text-[15px] font-medium tabular-nums" aria-live="polite">{{ item.quantidade }}</span>
+  <button type="submit" name="quantidade" value="{{ item.quantidade + 1 }}" class="flex h-full w-9 items-center justify-center rounded-r-lg hover:bg-cream disabled:opacity-35" aria-label="Aumentar quantidade de {{ item.variacao.produto.nome }}" {% if item.quantidade >= [item.variacao.estoque, loja.QUANTIDADE_MAXIMA_POR_ITEM] | min %}disabled{% endif %}>{{ icone('mais', 'size-4') }}</button>
+</form>
+{%- endmacro %}
+
+{# Etiqueta de status do pedido #}
+{% macro status(pedido) -%}
+<span class="etiqueta status-{{ pedido.status }}">{{ pedido.rotulo_status }}</span>
+{%- endmacro %}

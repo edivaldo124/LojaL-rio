@@ -1,0 +1,14 @@
+{% from 'componentes/icones.html' import icone %}
+{% with mensagens = get_flashed_messages(with_categories=true) %}
+{% if mensagens %}
+<div class="mx-auto max-w-6xl space-y-2 px-4 pt-3 md:px-6">
+  {% for categoria, mensagem in mensagens %}
+  {% set tipo = categoria if categoria in ('sucesso', 'erro') else 'info' %}
+  <div class="aviso aviso-{{ tipo }}" role="{{ 'alert' if tipo == 'erro' else 'status' }}">
+    {{ icone({'sucesso': 'check', 'erro': 'alerta'}.get(tipo, 'alerta'), 'mt-0.5 size-[18px] shrink-0') }}
+    <p class="flex-1">{{ mensagem }}</p>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+{% endwith %}

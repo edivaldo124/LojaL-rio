@@ -1,0 +1,25 @@
+<footer class="mt-16 bg-ink text-white/80">
+  <div class="mx-auto grid max-w-6xl gap-8 px-4 py-10 text-sm md:grid-cols-[1.4fr_1fr_1fr] md:px-6">
+    <div>
+      <img src="{{ url_for('static', filename=loja.LOGOS['horizontal_branca']) }}" alt="{{ loja.NOME }} · {{ loja.SLOGAN }}" width="651" height="275" loading="lazy" class="h-14 w-auto">
+      <p class="mt-3 max-w-xs leading-relaxed">{{ loja.TEXTOS['rodape'] }}</p>
+    </div>
+    <div>
+      <h2 class="mb-3 font-semibold text-white">Atendimento</h2>
+      <ul class="space-y-2">
+        <li>{{ loja.CONTATO['email'] }}</li>
+        <li>WhatsApp {{ loja.CONTATO['whatsapp'] }}</li>
+        <li>Instagram {{ loja.CONTATO['instagram'] }}</li>
+      </ul>
+    </div>
+    <div>
+      <h2 class="mb-3 font-semibold text-white">Loja</h2>
+      <ul class="space-y-2">
+        <li><a href="{{ url_for('loja.busca') }}" class="hover:text-white hover:underline">Todos os produtos</a></li>
+        <li><a href="{{ url_for('conta.pedidos') }}" class="hover:text-white hover:underline">Meus pedidos</a></li>
+        <li><a href="{{ url_for('loja.privacidade') }}" class="hover:text-white hover:underline">Política de privacidade</a></li>
+      </ul>
+    </div>
+  </div>
+  <p class="border-t border-white/10 px-4 py-4 text-center text-xs text-white/60">© {{ loja.NOME }} · {{ loja.SLOGAN }}. Pagamentos processados pelo Mercado Pago.</p>
+</footer>

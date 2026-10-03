@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>{% block titulo %}{{ loja.TITULO_SITE }}{% endblock %}</title>
+  <meta name="description" content="{% block descricao %}{{ loja.DESCRICAO }}{% endblock %}">
+  <meta name="theme-color" content="{{ loja.CORES['cream'] }}">
+  <meta property="og:site_name" content="{{ loja.NOME }}">
+  <meta property="og:locale" content="pt_BR">
+  <meta property="og:type" content="{% block og_tipo %}website{% endblock %}">
+  <meta property="og:title" content="{{ self.titulo() }}">
+  <meta property="og:description" content="{{ self.descricao() }}">
+  <meta property="og:url" content="{{ config.URL_BASE }}{{ request.path }}">
+  {% block og_imagem %}<meta property="og:image" content="{{ config.URL_BASE }}{{ url_for('static', filename=loja.LOGOS['horizontal']) }}">{% endblock %}
+  <link rel="canonical" href="{{ config.URL_BASE }}{{ request.path }}">
+  <link rel="icon" href="{{ url_for('static', filename=loja.LOGOS['simbolo']) }}" type="image/svg+xml">
+  <link rel="preload" href="{{ url_for('static', filename='fonts/inter-latin-wght-normal.woff2') }}" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="{{ estatico('css/app.css') }}">
+  {# Cores de config_loja.py: trocar a paleta não exige recompilar o CSS. #}
+  <style>:root{ {%- for nome, valor in loja.CORES.items() %}--color-{{ nome }}:{{ valor }};{% endfor -%} }</style>
+  {% block head %}{% endblock %}
+</head>
+<body class="min-h-dvh {% block classe_body %}{% endblock %}">
+  <a href="#conteudo" class="sr-only z-50 rounded-botao bg-ink px-4 py-2 text-white focus:not-sr-only focus:fixed focus:top-2 focus:left-2">Pular para o conteúdo</a>
+
+  {% block cabecalho %}{% endblock %}
+
+  <main id="conteudo" class="{% block classe_main %}{% endblock %}">
+    {% include 'componentes/avisos.html' %}
+    {% block conteudo %}{% endblock %}
+  </main>
+
+  {% block rodape %}{% include 'componentes/rodape.html' %}{% endblock %}
+  {% block barra_inferior %}{% endblock %}
+
+  {% include 'componentes/menu.html' %}
+  {% include 'componentes/aviso_cookies.html' %}
+  <div id="toast" role="status" aria-live="polite" class="pointer-events-none fixed inset-x-0 bottom-28 z-50 flex justify-center px-4 md:bottom-8"></div>
+  <script src="{{ estatico('js/app.js') }}" defer></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>
