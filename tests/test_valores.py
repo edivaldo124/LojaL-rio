@@ -126,3 +126,22 @@ class TestTotais:
         totais = calcular_totais(10000, 1990, None, cupom)
         assert totais.desconto_cupom == 10000
         assert totais.total == 1990
+
+
+class TestUrlDoBanco:
+    @pytest.mark.parametrize(
+        ("recebida", "usada"),
+        [
+            (
+                "postgresql://u:s@host:5432/db?sslmode=require",
+                "postgresql+psycopg2://u:s@host:5432/db?sslmode=require",
+            ),
+            ("postgres://u:s@host/db", "postgresql+psycopg2://u:s@host/db"),
+            ("postgresql+psycopg2:///lojalirio", "postgresql+psycopg2:///lojalirio"),
+            ("sqlite:///teste.db", "sqlite:///teste.db"),
+        ],
+    )
+    def test_usa_sempre_o_psycopg2(self, recebida: str, usada: str) -> None:
+        from config import url_banco
+
+        assert url_banco(recebida) == usada
