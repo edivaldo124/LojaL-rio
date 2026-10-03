@@ -1,0 +1,18 @@
+{
+  "name": "lojalirio",
+  "version": "1.0.0",
+  "description": "Build do CSS (Tailwind) da loja",
+  "scripts": {
+    "css": "tailwindcss -i static/css/entrada.css -o static/css/app.css --minify",
+    "css:watch": "tailwindcss -i static/css/entrada.css -o static/css/app.css --watch",
+    "fontes": "cp node_modules/@fontsource-variable/inter/files/inter-latin-wght-normal.woff2 node_modules/@fontsource/playfair-display/files/playfair-display-latin-500-normal.woff2 node_modules/@fontsource/playfair-display/files/playfair-display-latin-600-normal.woff2 static/fonts/"
+  },
+  "license": "UNLICENSED",
+  "devDependencies": {
+    "@fontsource-variable/inter": "^5.3.0",
+    "@fontsource/playfair-display": "^5.3.0",
+    "@tailwindcss/cli": "^4.3.3",
+    "tailwindcss": "^4.3.3"
+  },
+  "private": true
+}
