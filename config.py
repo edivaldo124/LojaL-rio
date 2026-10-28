@@ -69,6 +69,10 @@ class Config:
     # Cloudflare na frente do Render: 2). Errar para mais deixa um visitante forjar o IP.
     PROXY_SALTOS = _inteiro("PROXY_SALTOS", 1 if EM_PRODUCAO else 0)
 
+    # Keep-alive: pinga o próprio /health para o Render gratuito não hibernar (servicos/keep_alive.py)
+    KEEP_ALIVE = _texto("KEEP_ALIVE").lower() in ("1", "true", "sim", "yes", "on")
+    KEEP_ALIVE_INTERVALO = _texto("KEEP_ALIVE_INTERVALO")
+
     # Limite de tentativas (login/cadastro)
     RATELIMIT_STORAGE_URI = _texto("RATELIMIT_STORAGE_URI", "memory://")
     RATELIMIT_HEADERS_ENABLED = True
@@ -113,3 +117,4 @@ class ConfigTeste(Config):
     SUPABASE_SECRET_KEY = ""
     SMTP_HOST = ""
     URL_BASE = "http://localhost"
+    KEEP_ALIVE = False
