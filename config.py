@@ -65,6 +65,10 @@ class Config:
     MAX_CONTENT_LENGTH = 30 * 1024 * 1024
     PASTA_UPLOADS = BASE_DIR / "static" / "uploads"
 
+    # Quantos proxies ficam na frente da loja e repassam o IP real em X-Forwarded-For (Render ou Caddy: 1;
+    # Cloudflare na frente do Render: 2). Errar para mais deixa um visitante forjar o IP.
+    PROXY_SALTOS = _inteiro("PROXY_SALTOS", 1 if EM_PRODUCAO else 0)
+
     # Limite de tentativas (login/cadastro)
     RATELIMIT_STORAGE_URI = _texto("RATELIMIT_STORAGE_URI", "memory://")
     RATELIMIT_HEADERS_ENABLED = True

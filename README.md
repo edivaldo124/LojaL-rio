@@ -52,7 +52,19 @@ O `flask seed` cria 2 categorias, 8 produtos com cores, tamanhos e estoque, o ba
 o cupom `BEMVINDA10` (10% acima de R$ 100) e a usuária admin (`ADMIN_EMAIL`). Sem `ADMIN_SENHA` no
 `.env`, ele gera uma senha e mostra no terminal. Pode rodar de novo sem duplicar nada.
 
-O painel fica em `/admin` (entre com a conta admin).
+As fotos dos produtos, categorias e banner são de peças reais, baixadas do [Unsplash](https://unsplash.com/license)
+(uso comercial livre) só para a vitrine de demonstração: troque pelas fotos da loja no painel. A foto que
+não baixar (sem internet, por exemplo) vira uma ilustração. Para trocar as ilustrações de um seed antigo
+pelas fotos, rode `flask seed --fotos-reais` (fotos enviadas no painel não são mexidas).
+
+### Conta admin
+
+O painel fica em `/admin` (entre com a conta admin). O `flask admin` cria a conta `ADMIN_EMAIL` ou
+acerta a dela: se `ADMIN_SENHA` (mínimo 12 caracteres) for diferente da senha atual, troca e desconecta as
+sessões abertas. Ele roda a cada deploy (ver o comando de início abaixo), então **para trocar a senha
+do painel basta mudar `ADMIN_SENHA` nas variáveis do Render e fazer um novo deploy**. Se alguém tiver
+se cadastrado como cliente com o e-mail do admin, a conta só vira admin com `ADMIN_SENHA` definida, e a
+senha e o login Google dessa pessoa são descartados.
 
 ### CSS (Tailwind)
 
@@ -72,7 +84,7 @@ a paleta não exige recompilar.
 ruff check .            # lint
 ruff format --check .   # formatação
 mypy                    # tipos
-pytest                  # 87 testes: valores, frete, Pix, cupom, estoque, webhook, admin, segurança, fotos e fluxo completo
+pytest                  # 104 testes: valores, frete, Pix, cupom, estoque, webhook, admin, segurança, fotos, seed e fluxo completo
 ```
 
 ## Variáveis de ambiente
@@ -91,7 +103,8 @@ Todas estão documentadas em [.env.example](.env.example). As principais:
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | login com Google; sem elas o botão não aparece |
 | `SMTP_*` / `EMAIL_REMETENTE` | e-mail de recuperação de senha; sem SMTP o link vai para o log |
 | `RATELIMIT_STORAGE_URI` | limite de tentativas de login; use Redis com vários workers |
-| `ADMIN_EMAIL` / `ADMIN_SENHA` | conta admin criada pelo seed |
+| `PROXY_SALTOS` | proxies na frente da loja (padrão 1 em produção; 2 com Cloudflare na frente do Render) |
+| `ADMIN_EMAIL` / `ADMIN_SENHA` | conta admin, criada ou corrigida pelo `flask admin` a cada deploy |
 
 ## Pagamento Pix
 
@@ -121,7 +134,7 @@ O banco e as fotos ficam no Supabase; o app roda no Render (região **Virginia**
    `postgresql://<papel>.<ref>:<senha>@aws-0-us-east-1.pooler.supabase.com:5432/postgres?sslmode=require`.
 2. **Render** → New → Web Service, apontando para o repositório:
    - Build: `pip install -r requirements.txt`
-   - Start: `flask db upgrade && gunicorn app:app --bind 0.0.0.0:$PORT --workers 2`
+   - Start: `flask db upgrade && flask admin && gunicorn app:app --bind 0.0.0.0:$PORT --workers 2`
    - Python: o `.python-version` fixa a 3.13.5.
 3. **Variáveis no Render**: `DATABASE_URL`, `SECRET_KEY`, `URL_BASE` (o endereço `https://…onrender.com`),
    `SUPABASE_URL`, `SUPABASE_SECRET_KEY`, `AMBIENTE`, `ADMIN_EMAIL`, `ADMIN_SENHA` e, para cobrar de
@@ -131,10 +144,23 @@ O banco e as fotos ficam no Supabase; o app roda no Render (região **Virginia**
      **não divulgue o endereço** nesse modo, porque qualquer pessoa poderia "pagar" um pedido.
 4. **Dados iniciais**, uma vez, do seu computador, com as mesmas variáveis do Render:
    `DATABASE_URL=... SUPABASE_URL=... SUPABASE_SECRET_KEY=... ADMIN_SENHA=... flask seed`
+   (já tem o seed antigo com ilustrações? use `flask seed --fotos-reais` com as mesmas variáveis).
 5. **Expiração dos Pix**: o plano gratuito do Render não tem cron. A lista de pedidos do admin já expira
    os vencidos ao abrir; para rodar sozinho, crie um *Cron Job* no Render (pago) com `flask pedidos expirar`
    a cada 5 minutos.
 6. **Mercado Pago**: cadastre o webhook `{URL_BASE}/pagamentos/webhook`.
+
+### Cloudflare na frente (opcional)
+
+Com o domínio na Cloudflare (proxy laranja ligado), defina `PROXY_SALTOS=2` no Render e, no painel da
+Cloudflare (Security → WAF):
+
+- **Managed rules**: ligue o *Cloudflare Free Managed Ruleset*.
+- **Rate limiting rule**: `http.request.uri.path eq "/conta/entrar" and http.request.method eq "POST"`,
+  por IP, 10 requisições em 1 minuto → *Block* por 10 minutos (o Flask já limita; isso barra antes).
+- **Custom rule** para o painel, se você entra sempre do Brasil:
+  `starts_with(http.request.uri.path, "/admin") and ip.src.country ne "BR"` → *Managed Challenge*.
+- Não crie regra que bloqueie `POST /pagamentos/webhook`: é por ali que o Mercado Pago avisa o pagamento.
 
 ## Deploy (VPS)
 

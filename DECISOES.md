@@ -86,9 +86,18 @@ Bibliotecas além da stack, com justificativa:
 - **RLS automático**: a cada `flask db upgrade`, o `migrations/env.py` liga o RLS em toda tabela do
   schema da loja, inclusive as criadas por migrations novas. A loja é dona das tabelas e não é afetada;
   acessos pela API pública ficam bloqueados.
-- **Seed**: as fotos dos produtos são ilustrações geradas (silhueta da peça na cor da variação),
-  porque não há fotos reais ainda. O admin padrão é `admin@exemplo.com`: domínios reservados como
-  `.local` são recusados pelo validador de e-mail do login.
+- **Seed**: as fotos são de peças reais do Unsplash (licença de uso comercial livre), baixadas pelo seed,
+  recortadas e guardadas como as fotos do painel, para a vitrine de demonstração parecer uma loja de
+  verdade. São peças parecidas, não as da loja, e não seguem a cor de cada variação. A foto que não
+  baixar vira a ilustração gerada de antes (silhueta da peça na cor da variação). O admin padrão é
+  `admin@exemplo.com`: domínios reservados como `.local` são recusados pelo validador de e-mail do login.
+- **Conta admin (28/10/2026)**: o seed só criava a conta e ignorava `ADMIN_SENHA` depois disso, e o
+  Render gratuito não tem shell, então não havia como trocar ou recuperar a senha do painel. O
+  `flask admin` roda a cada deploy e alinha a conta com `ADMIN_EMAIL`/`ADMIN_SENHA` (mínimo 12
+  caracteres). Um erro ali só vai para o log, para não derrubar a loja. Em produção ele não gera senha
+  (iria parar no log do Render).
+- **IP real atrás do proxy**: sem `ProxyFix`, o limite de tentativas de login via o IP do proxy do Render
+  e valia para todo mundo junto. `PROXY_SALTOS` (1 em produção) diz quantos proxies confiar.
 - **Galeria no celular em 4:5**: no protótipo a área da galeria é mais larga que alta (390×340), mas foto
   de roupa é vertical e ficaria cortada pela metade. No desktop a galeria é 3:4.
 - **Botão da etapa Pagamento**: o protótipo mostra "Confirmar pedido" na tela de pagamento, mas o

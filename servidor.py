@@ -11,6 +11,7 @@ from flask import Flask, Response, g, render_template, url_for
 from flask_login import current_user
 from flask_wtf.csrf import CSRFError
 from sqlalchemy import select
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 import config_loja
 from config import Config
@@ -45,6 +46,11 @@ def create_app(config: type[Config] = Config) -> Flask:
         raise RuntimeError("Defina SECRET_KEY no .env (obrigatório em produção).")
 
     logging.basicConfig(level=logging.INFO)
+    if app.config["PROXY_SALTOS"]:
+        # Atrás do Render/Caddy/Cloudflare o IP da conexão é o do proxy: sem isso o limite de tentativas
+        # de login valeria para todo mundo junto (um robô no /conta/entrar trancaria até o admin).
+        saltos = app.config["PROXY_SALTOS"]
+        app.wsgi_app = ProxyFix(app.wsgi_app, x_for=saltos, x_proto=saltos)  # type: ignore[method-assign]
     if app.config["EM_PRODUCAO"] and not (app.config["SUPABASE_URL"] and app.config["SUPABASE_SECRET_KEY"]):
         app.logger.warning(
             "SUPABASE_URL/SUPABASE_SECRET_KEY ausentes: as fotos vão para o disco local, "
@@ -182,11 +188,28 @@ def _registrar_respostas(app: Flask) -> None:
 
 def _registrar_comandos(app: Flask) -> None:
     @app.cli.command("seed")
-    def seed() -> None:
+    @click.option("--fotos-reais", is_flag=True, help="Só troca as ilustrações de um seed antigo por fotos.")
+    def seed(fotos_reais: bool) -> None:
         """Popula o banco com categorias, produtos, banner, cupom e o admin."""
-        from seed import executar
+        from seed import executar, trocar_ilustracoes
 
-        executar()
+        if fotos_reais:
+            trocar_ilustracoes()
+        else:
+            executar()
+
+    @app.cli.command("admin")
+    def admin() -> None:
+        """Cria o admin ou corrige papel e senha a partir de ADMIN_EMAIL/ADMIN_SENHA (rodar a cada deploy).
+
+        Um problema aqui só é avisado no log: não pode impedir a loja de subir."""
+        from servicos.admin import ErroAdmin, garantir_admin
+
+        config = app.config
+        try:
+            click.echo(garantir_admin(config["ADMIN_EMAIL"], config["ADMIN_SENHA"], config["EM_PRODUCAO"]))
+        except ErroAdmin as erro:
+            click.echo(f"Admin não alterado: {erro}", err=True)
 
     pedidos_cli = click.Group("pedidos", help="Rotinas de pedidos.")
 

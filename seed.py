@@ -1,34 +1,35 @@
 """Dados iniciais: 2 categorias, 8 produtos com variações, banner, cupom e o usuário admin.
 
 Uso: `flask seed`. Pode rodar mais de uma vez: o que já existe (pelo slug/código/e-mail) é mantido.
-As fotos são ilustrações geradas (silhueta da peça na cor da variação) até a loja ter fotos reais.
+As fotos são de peças reais, baixadas do Unsplash só para a vitrine de demonstração (a loja troca pelas
+suas no painel). A que não baixar vira uma ilustração gerada. `flask seed --fotos-reais` troca as
+ilustrações de um seed antigo pelas fotos.
 """
 
 from __future__ import annotations
 
 import io
 import random
-import secrets
 from datetime import UTC, datetime, timedelta
 
 import click
+import requests
 from flask import current_app
-from PIL import Image, ImageDraw, ImageFilter
+from PIL import Image, ImageDraw, ImageFilter, ImageOps
 from sqlalchemy import select
 
 from extensoes import db
 from modelos import (
-    PAPEL_ADMIN,
     TIPO_PERCENTUAL,
     Banner,
     Categoria,
     Cupom,
     ImagemProduto,
     Produto,
-    Usuario,
     Variacao,
 )
-from servicos import armazenamento, senhas
+from servicos import armazenamento
+from servicos.admin import ErroAdmin, garantir_admin
 from servicos.slugs import slugify
 
 CORES = {
@@ -133,6 +134,40 @@ PRODUTOS = [
 ]
 
 ESTOQUES = (6, 3, 0, 8, 2, 5, 1, 4, 7)
+
+# Fotos reais de demonstração: ids de fotos do Unsplash (licença Unsplash: uso comercial livre, sem
+# atribuição obrigatória). São parecidas com a peça, não a peça da loja: troque pelas suas no painel.
+FOTOS_PRODUTOS = {
+    "vestido-midi-floral": ["EyklrWNBxSM", "gxuwW00YnmY", "vH5Z8o57KfY"],
+    "vestido-tubinho-preto": ["zUEVr2oZcL4", "-jpO1CkN7b4", "Y0ZLILiWvk4"],
+    "vestido-longo-estampado": ["mGdA2fzjWLo", "Sb8foZVY8zA", "uKRf2UREyAM"],
+    "vestido-chemise": ["bPIA-EPsGls", "pemj-1XSoPk"],
+    "blusa-de-linho": ["lVmfE2MAJAY", "i2jbuqO0YfM"],
+    "blusa-de-seda": ["Bvyw3KYzFyg", "o2Bl6Y9hPos"],
+    "blusa-canelada": ["BtHgu3sUwXY", "gUPznplBsLI", "_KP6Ve-rnNw"],
+    "camisa-de-cetim": ["Ag4bMI_jsF4", "lcGHKvlKteg", "8xf4Pr7Htqs"],
+}
+FOTOS_CATEGORIAS = {"vestidos": "607RRWltIMo", "blusas": "XDYlOQUrfD8"}
+FOTO_BANNER = "11IK4ZQ6hD4"
+PREFIXO_SEED = "seed/"
+
+
+# ---------------------------------------------------------------- fotos reais
+
+
+def foto_unsplash(foto_id: str, tamanho: tuple[int, int]) -> Image.Image | None:
+    """Baixa a foto e recorta no `tamanho`, de olho na parte de cima (rosto e busto). None se falhar."""
+    try:
+        resposta = requests.get(
+            f"https://unsplash.com/photos/{foto_id}/download", params={"force": "true"}, timeout=60
+        )
+        resposta.raise_for_status()
+        with Image.open(io.BytesIO(resposta.content)) as original:
+            foto = ImageOps.exif_transpose(original).convert("RGB")
+        return ImageOps.fit(foto, tamanho, Image.Resampling.LANCZOS, centering=(0.5, 0.35))
+    except (requests.RequestException, OSError, Image.DecompressionBombError) as erro:
+        click.echo(f"Foto {foto_id} indisponível ({erro}): usando a ilustração.", err=True)
+        return None
 
 
 # ---------------------------------------------------------------- ilustrações
@@ -286,6 +321,9 @@ def _salvar(imagem: Image.Image, nome: str) -> str:
 
 def _banner() -> str:
     largura, altura = 1600, 700
+    foto = foto_unsplash(FOTO_BANNER, (largura, altura))
+    if foto is not None:
+        return _salvar(foto, "foto-banner-nova-colecao")
     imagem = Image.new("RGBA", (largura, altura))
     pinta = ImageDraw.Draw(imagem)
     for x in range(largura):
@@ -297,20 +335,92 @@ def _banner() -> str:
     return _salvar(imagem.convert("RGB"), "banner-nova-colecao")
 
 
+def _imagem_categoria(slug: str, tipo: str, cor: str) -> str:
+    foto = foto_unsplash(FOTOS_CATEGORIAS[slug], (400, 400)) if slug in FOTOS_CATEGORIAS else None
+    if foto is not None:
+        return _salvar(foto, f"foto-categoria-{slug}")
+    return _salvar(ilustracao(tipo, CORES[cor], tipo == "vestido", 1, (400, 400)), f"categoria-{slug}")
+
+
+def _imagens_produto(
+    nome: str, slug: str, nome_categoria: str, cores: list[str], estampa: bool
+) -> list[ImagemProduto]:
+    """Fotos reais do produto; sem nenhuma, as ilustrações nas cores das variações."""
+    imagens: list[ImagemProduto] = []
+    for foto_id in FOTOS_PRODUTOS.get(slug, []):
+        foto = foto_unsplash(foto_id, (1200, 1600))
+        if foto is not None:
+            ordem = len(imagens)
+            url = _salvar(foto, f"foto-{slug}-{ordem + 1}")
+            imagens.append(ImagemProduto(url=url, alt=f"{nome}, foto {ordem + 1}", ordem=ordem))
+    if imagens:
+        return imagens
+    tipo = "vestido" if nome_categoria == "Vestidos" else "blusa"
+    for angulo, cor in enumerate((cores * 3)[:3]):
+        imagem = ilustracao(tipo, CORES[cor], estampa, angulo, (1200, 1600))
+        url = _salvar(imagem, f"{slug}-{angulo + 1}")
+        imagens.append(ImagemProduto(url=url, alt=f"{nome} na cor {cor.lower()}", ordem=angulo))
+    return imagens
+
+
+def _e_ilustracao(referencia: str | None) -> bool:
+    """Imagem gerada por um seed antigo (as fotos reais têm o prefixo 'foto-')."""
+    if not referencia:
+        return False
+    return PREFIXO_SEED in referencia and f"{PREFIXO_SEED}foto-" not in referencia
+
+
+def trocar_ilustracoes() -> None:
+    """Troca as ilustrações de produtos, categorias e banner do seed pelas fotos reais.
+
+    Só mexe no que ainda é ilustração: fotos enviadas pela loja no painel ficam como estão.
+    """
+    trocados = outros = 0
+    for produto in db.session.scalars(select(Produto).where(Produto.slug.in_(FOTOS_PRODUTOS))):
+        if not produto.imagens or not all(_e_ilustracao(imagem.url) for imagem in produto.imagens):
+            continue
+        cores = list(dict.fromkeys(variacao.cor for variacao in produto.variacoes))
+        novas = _imagens_produto(produto.nome, produto.slug, produto.categoria.nome, cores, False)
+        if all(_e_ilustracao(imagem.url) for imagem in novas):
+            continue  # nenhuma foto baixou: mantém as antigas
+        antigas = [imagem.url for imagem in produto.imagens]
+        produto.imagens = novas
+        db.session.commit()
+        for url in antigas:
+            armazenamento.remover(url)
+        trocados += 1
+
+    for categoria in db.session.scalars(select(Categoria).where(Categoria.slug.in_(FOTOS_CATEGORIAS))):
+        foto = (
+            foto_unsplash(FOTOS_CATEGORIAS[categoria.slug], (400, 400))
+            if _e_ilustracao(categoria.imagem)
+            else None
+        )
+        if foto is not None:
+            antiga, categoria.imagem = categoria.imagem, _salvar(foto, f"foto-categoria-{categoria.slug}")
+            db.session.commit()
+            armazenamento.remover(antiga)
+            outros += 1
+
+    for banner in db.session.scalars(select(Banner)):
+        foto = foto_unsplash(FOTO_BANNER, (1600, 700)) if _e_ilustracao(banner.imagem) else None
+        if foto is not None:
+            antiga, banner.imagem = banner.imagem, _salvar(foto, "foto-banner-nova-colecao")
+            db.session.commit()
+            armazenamento.remover(antiga)
+            outros += 1
+    click.echo(f"Fotos reais aplicadas em {trocados} produto(s) e {outros} categoria(s)/banner.")
+
+
 # ---------------------------------------------------------------- execução
 
 
 def _admin() -> None:
-    email = current_app.config["ADMIN_EMAIL"].lower()
-    if db.session.scalar(select(Usuario).where(Usuario.email == email)) is not None:
-        click.echo(f"Admin {email} já existe (senha mantida).")
-        return
-    senha = current_app.config["ADMIN_SENHA"] or secrets.token_urlsafe(12)
-    db.session.add(
-        Usuario(nome="Administradora", email=email, senha_hash=senhas.gerar_hash(senha), papel=PAPEL_ADMIN)
-    )
-    origem = "definida em ADMIN_SENHA" if current_app.config["ADMIN_SENHA"] else f"gerada: {senha}"
-    click.echo(f"Admin criado: {email} — senha {origem}")
+    config = current_app.config
+    try:
+        click.echo(garantir_admin(config["ADMIN_EMAIL"], config["ADMIN_SENHA"], config["EM_PRODUCAO"]))
+    except ErroAdmin as erro:
+        click.echo(f"Admin não criado: {erro}", err=True)
 
 
 def executar() -> None:
@@ -321,9 +431,8 @@ def executar() -> None:
         slug = slugify(nome)
         categoria = db.session.scalar(select(Categoria).where(Categoria.slug == slug))
         if categoria is None:
-            imagem = ilustracao(tipo, CORES[cor], tipo == "vestido", 1, (400, 400))
             categoria = Categoria(
-                nome=nome, slug=slug, ordem=ordem, imagem=_salvar(imagem, f"categoria-{slug}")
+                nome=nome, slug=slug, ordem=ordem, imagem=_imagem_categoria(slug, tipo, cor)
             )
             db.session.add(categoria)
         categorias[nome] = categoria
@@ -347,16 +456,7 @@ def executar() -> None:
             preco_promocional=promo,
             criado_em=agora - timedelta(days=posicao),
         )
-        tipo = "vestido" if nome_categoria == "Vestidos" else "blusa"
-        for angulo, cor in enumerate((cores * 3)[:3]):
-            imagem = ilustracao(tipo, CORES[cor], estampa, angulo, (1200, 1600))
-            produto.imagens.append(
-                ImagemProduto(
-                    url=_salvar(imagem, f"{slug}-{angulo + 1}"),
-                    alt=f"{nome} na cor {cor.lower()}",
-                    ordem=angulo,
-                )
-            )
+        produto.imagens.extend(_imagens_produto(nome, slug, nome_categoria, cores, estampa))
         for i, cor in enumerate(cores):
             for j, tamanho in enumerate(("PP", "P", "M", "G", "GG")):
                 produto.variacoes.append(

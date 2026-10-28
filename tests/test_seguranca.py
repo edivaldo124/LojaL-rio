@@ -1,14 +1,19 @@
-"""Redirecionamento após login e ligação de conta com o Google."""
+"""Redirecionamento após login, ligação de conta com o Google e a conta admin."""
 
 from __future__ import annotations
 
 import pytest
-from flask import Flask
+from flask import Flask, request
 from flask.testing import FlaskClient
+from sqlalchemy import select
 
 from blueprints.conta_bp import destino_seguro, usuario_do_google
+from config import ConfigTeste
 from extensoes import db
+from modelos import Usuario
 from servicos import senhas
+from servicos.admin import ErroAdmin, garantir_admin
+from servidor import create_app
 from tests import fabricas
 
 PADRAO = "/conta"
@@ -112,3 +117,96 @@ class TestRetornoGoogle:
         resposta = self._retorno(cliente, monkeypatch, userinfo)
         assert resposta.headers["Location"] == "/conta"
         assert cliente.get("/conta").status_code == 200
+
+
+class TestContaAdmin:
+    """`flask admin`: a conta do painel segue ADMIN_EMAIL e ADMIN_SENHA a cada deploy."""
+
+    SENHA = "senha-do-painel-123"
+
+    def _admin(self) -> Usuario:
+        conta = db.session.scalar(select(Usuario).where(Usuario.email == "dona@exemplo.com"))
+        assert conta is not None
+        return conta
+
+    def test_cria_o_admin_com_a_senha_do_ambiente(self, banco: None) -> None:
+        assert "criado" in garantir_admin("Dona@Exemplo.com", self.SENHA, em_producao=True)
+        conta = self._admin()
+        assert conta.is_admin and senhas.conferir(conta.senha_hash, self.SENHA)
+
+    def test_troca_a_senha_e_derruba_as_sessoes(self, banco: None) -> None:
+        garantir_admin("dona@exemplo.com", self.SENHA, em_producao=True)
+        versao = self._admin().versao_sessao
+        assert "atualizada" in garantir_admin("dona@exemplo.com", "outra-senha-longa-456", em_producao=True)
+        conta = self._admin()
+        assert senhas.conferir(conta.senha_hash, "outra-senha-longa-456")
+        assert conta.versao_sessao == versao + 1
+
+    def test_mesma_senha_nao_mexe_na_conta(self, banco: None) -> None:
+        garantir_admin("dona@exemplo.com", self.SENHA, em_producao=True)
+        versao = self._admin().versao_sessao
+        assert "em dia" in garantir_admin("dona@exemplo.com", self.SENHA, em_producao=True)
+        assert "em dia" in garantir_admin("dona@exemplo.com", "", em_producao=True)
+        assert self._admin().versao_sessao == versao
+
+    def test_recusa_senha_curta(self, banco: None) -> None:
+        with pytest.raises(ErroAdmin):
+            garantir_admin("dona@exemplo.com", "curta", em_producao=False)
+
+    def test_producao_sem_senha_nao_gera_senha_no_log(self, banco: None) -> None:
+        with pytest.raises(ErroAdmin):
+            garantir_admin("dona@exemplo.com", "", em_producao=True)
+        assert "gerada" in garantir_admin("dona@exemplo.com", "", em_producao=False)
+
+    def test_cliente_com_o_email_do_admin(self, banco: None) -> None:
+        """Alguém cadastrou o e-mail da dona antes do deploy: sem ADMIN_SENHA não vira admin; com ela,
+        a senha e o Google dessa pessoa são descartados."""
+        intrusa = fabricas.usuario("dona@exemplo.com")
+        intrusa.google_sub = "google-da-intrusa"
+        db.session.commit()
+        with pytest.raises(ErroAdmin):
+            garantir_admin("dona@exemplo.com", "", em_producao=True)
+        assert not self._admin().is_admin
+
+        garantir_admin("dona@exemplo.com", self.SENHA, em_producao=True)
+        conta = self._admin()
+        assert conta.is_admin and conta.google_sub is None
+        assert not senhas.conferir(conta.senha_hash, fabricas.SENHA)
+
+    def test_comando_flask_admin(self, app: Flask) -> None:
+        app.config.update(ADMIN_EMAIL="dona@exemplo.com", ADMIN_SENHA=self.SENHA)
+        try:
+            saida = app.test_cli_runner().invoke(args=["admin"])
+        finally:
+            app.config.update(ADMIN_EMAIL="admin@exemplo.com", ADMIN_SENHA="")
+        assert saida.exit_code == 0 and "criado" in saida.output
+
+
+class TestProxy:
+    def test_ip_real_atras_do_proxy(self) -> None:
+        """O limite de login conta por visitante, não pelo IP do proxy do Render."""
+
+        class ConfigProxy(ConfigTeste):
+            PROXY_SALTOS = 1
+
+        app = create_app(ConfigProxy)
+
+        @app.get("/_ip")
+        def ip() -> str:
+            return request.remote_addr or ""
+
+        resposta = app.test_client().get("/_ip", headers={"X-Forwarded-For": "203.0.113.7"})
+        assert resposta.text == "203.0.113.7"
+
+    def test_link_de_senha_ignora_host_forjado(self, app: Flask, monkeypatch: pytest.MonkeyPatch) -> None:
+        with app.app_context():
+            fabricas.usuario()
+            db.session.commit()
+        enviados: list[str] = []
+        monkeypatch.setattr("servicos.email.enviar", lambda *args, **_: enviados.append(" ".join(args)))
+        app.test_client().post(
+            "/conta/esqueci-senha",
+            data={"email": "cliente@exemplo.com"},
+            headers={"Host": "evil.com", "X-Forwarded-Host": "evil.com"},
+        )
+        assert enviados and "evil.com" not in enviados[0] and "http://localhost/conta/" in enviados[0]
