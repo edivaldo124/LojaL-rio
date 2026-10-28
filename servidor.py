@@ -172,6 +172,11 @@ def _registrar_templates(app: Flask) -> None:
 
 
 def _registrar_respostas(app: Flask) -> None:
+    @app.get("/health")
+    def saude() -> tuple[str, int]:
+        """O processo está de pé (sem consultar o banco): alvo do keep-alive e do health check."""
+        return "ok", 200
+
     @app.after_request
     def depois(resposta: Response) -> Response:
         servico_sacola.gravar_cookie(resposta)
