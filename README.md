@@ -103,6 +103,7 @@ Todas estão documentadas em [.env.example](.env.example). As principais:
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | login com Google; sem elas o botão não aparece |
 | `SMTP_*` / `EMAIL_REMETENTE` | e-mail de recuperação de senha; sem SMTP o link vai para o log |
 | `RATELIMIT_STORAGE_URI` | limite de tentativas de login; use Redis com vários workers |
+| `KEEP_ALIVE` / `KEEP_ALIVE_INTERVALO` | pinga o próprio `/health` para o Render gratuito não hibernar |
 | `PROXY_SALTOS` | proxies na frente da loja (padrão 1 em produção; 2 com Cloudflare na frente do Render) |
 | `ADMIN_EMAIL` / `ADMIN_SENHA` | conta admin, criada ou corrigida pelo `flask admin` a cada deploy |
 
@@ -145,10 +146,15 @@ O banco e as fotos ficam no Supabase; o app roda no Render (região **Virginia**
 4. **Dados iniciais**, uma vez, do seu computador, com as mesmas variáveis do Render:
    `DATABASE_URL=... SUPABASE_URL=... SUPABASE_SECRET_KEY=... ADMIN_SENHA=... flask seed`
    (já tem o seed antigo com ilustrações? use `flask seed --fotos-reais` com as mesmas variáveis).
-5. **Expiração dos Pix**: o plano gratuito do Render não tem cron. A lista de pedidos do admin já expira
+5. **Hibernação**: o plano gratuito derruba o serviço após ~15 min sem visitas, e a primeira visita
+   depois espera quase um minuto. Com `KEEP_ALIVE=true`, a loja faz um GET no próprio `/health` a cada
+   `KEEP_ALIVE_INTERVALO` segundos (padrão 600, de 60 a 840; numa falha, tenta de novo em 60 s). O
+   endereço é o `RENDER_EXTERNAL_URL` que o Render define, ou o `URL_BASE`. Reduz a hibernação, sem
+   garantia: um serviço já suspenso só acorda com uma visita. Deixe desligado fora do Render.
+6. **Expiração dos Pix**: o plano gratuito do Render não tem cron. A lista de pedidos do admin já expira
    os vencidos ao abrir; para rodar sozinho, crie um *Cron Job* no Render (pago) com `flask pedidos expirar`
    a cada 5 minutos.
-6. **Mercado Pago**: cadastre o webhook `{URL_BASE}/pagamentos/webhook`.
+7. **Mercado Pago**: cadastre o webhook `{URL_BASE}/pagamentos/webhook`.
 
 ### Cloudflare na frente (opcional)
 
