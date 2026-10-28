@@ -61,7 +61,7 @@ pelas fotos, rode `flask seed --fotos-reais` (fotos enviadas no painel não são
 
 O painel fica em `/admin` (entre com a conta admin). O `flask admin` cria a conta `ADMIN_EMAIL` ou
 acerta a dela: se `ADMIN_SENHA` (mínimo 12 caracteres) for diferente da senha atual, troca e desconecta as
-sessões abertas. Ele roda a cada deploy (ver o comando de início abaixo), então **para trocar a senha
+sessões abertas. Com `ADMIN_SENHA` definida, a própria loja faz isso ao iniciar (`app.py`), então **para trocar a senha
 do painel basta mudar `ADMIN_SENHA` nas variáveis do Render e fazer um novo deploy**. Se alguém tiver
 se cadastrado como cliente com o e-mail do admin, a conta só vira admin com `ADMIN_SENHA` definida, e a
 senha e o login Google dessa pessoa são descartados.
