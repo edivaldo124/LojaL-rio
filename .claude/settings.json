@@ -27,7 +27,8 @@
     "code-review@claude-plugins-official": true,
     "security-guidance@claude-plugins-official": true,
     "commit-commands@claude-plugins-official": true,
-    "understand-anything@understand-anything": true
+    "understand-anything@understand-anything": true,
+    "superpowers@claude-plugins-official": true
   },
   "extraKnownMarketplaces": {
     "understand-anything": {
