@@ -197,3 +197,16 @@ class TestProxy:
 
         resposta = app.test_client().get("/_ip", headers={"X-Forwarded-For": "203.0.113.7"})
         assert resposta.text == "203.0.113.7"
+
+    def test_link_de_senha_ignora_host_forjado(self, app: Flask, monkeypatch: pytest.MonkeyPatch) -> None:
+        with app.app_context():
+            fabricas.usuario()
+            db.session.commit()
+        enviados: list[str] = []
+        monkeypatch.setattr("servicos.email.enviar", lambda *args, **_: enviados.append(" ".join(args)))
+        app.test_client().post(
+            "/conta/esqueci-senha",
+            data={"email": "cliente@exemplo.com"},
+            headers={"Host": "evil.com", "X-Forwarded-Host": "evil.com"},
+        )
+        assert enviados and "evil.com" not in enviados[0] and "http://localhost/conta/" in enviados[0]

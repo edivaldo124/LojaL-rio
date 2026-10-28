@@ -212,7 +212,8 @@ def esqueci_senha() -> str | RespostaWerkzeug:
         usuario = _buscar_por_email(form.email.data or "")
         if usuario is not None:
             token = _serializador().dumps({"id": usuario.id, "v": usuario.versao_sessao})
-            link = url_for("conta.redefinir_senha", token=token, _external=True)
+            # URL_BASE, não o Host da requisição: um Host forjado mandaria o token para outro site.
+            link = current_app.config["URL_BASE"] + url_for("conta.redefinir_senha", token=token)
             email.enviar(
                 usuario.email,
                 "Redefinir sua senha",
