@@ -11,6 +11,7 @@ from flask import Flask, Response, g, render_template, url_for
 from flask_login import current_user
 from flask_wtf.csrf import CSRFError
 from sqlalchemy import select
+from sqlalchemy.exc import SQLAlchemyError
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 import config_loja
@@ -68,6 +69,27 @@ def create_app(config: type[Config] = Config) -> Flask:
     _registrar_respostas(app)
     _registrar_comandos(app)
     return app
+
+
+def sincronizar_admin(app: Flask) -> None:
+    """Roda o `flask admin` ao iniciar, se ADMIN_SENHA estiver definida. Falhas só vão para o log."""
+    if not app.config["ADMIN_SENHA"]:
+        return
+    from servicos.admin import ErroAdmin, garantir_admin
+
+    config = app.config
+    with app.app_context():
+        try:
+            app.logger.info(
+                garantir_admin(config["ADMIN_EMAIL"], config["ADMIN_SENHA"], config["EM_PRODUCAO"])
+            )
+        except ErroAdmin as erro:
+            app.logger.warning("Admin não alterado: %s", erro)
+        except SQLAlchemyError:
+            # Banco fora do ar ou sem as tabelas (antes do `flask db upgrade`), ou outro worker criou a
+            # conta ao mesmo tempo: a loja sobe assim mesmo.
+            db.session.rollback()
+            app.logger.exception("Não foi possível conferir a conta admin")
 
 
 def _configurar_login(app: Flask) -> None:

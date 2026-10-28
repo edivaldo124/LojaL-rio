@@ -13,7 +13,7 @@ from extensoes import db
 from modelos import Usuario
 from servicos import senhas
 from servicos.admin import ErroAdmin, garantir_admin
-from servidor import create_app
+from servidor import create_app, sincronizar_admin
 from tests import fabricas
 
 PADRAO = "/conta"
@@ -198,6 +198,8 @@ class TestProxy:
         resposta = app.test_client().get("/_ip", headers={"X-Forwarded-For": "203.0.113.7"})
         assert resposta.text == "203.0.113.7"
 
+
+class TestLinkDeSenha:
     def test_link_de_senha_ignora_host_forjado(self, app: Flask, monkeypatch: pytest.MonkeyPatch) -> None:
         with app.app_context():
             fabricas.usuario()
@@ -210,3 +212,25 @@ class TestProxy:
             headers={"Host": "evil.com", "X-Forwarded-Host": "evil.com"},
         )
         assert enviados and "evil.com" not in enviados[0] and "http://localhost/conta/" in enviados[0]
+
+
+class TestSubida:
+    """app.py acerta o admin ao iniciar, sem depender do Start Command do Render."""
+
+    SENHA = TestContaAdmin.SENHA
+
+    def test_subida_acerta_o_admin(self, app: Flask) -> None:
+        app.config.update(ADMIN_EMAIL="dona@exemplo.com", ADMIN_SENHA=self.SENHA)
+        try:
+            sincronizar_admin(app)
+            sincronizar_admin(app)  # segunda subida: nada muda
+        finally:
+            app.config.update(ADMIN_EMAIL="admin@exemplo.com", ADMIN_SENHA="")
+        with app.app_context():
+            conta = db.session.scalar(select(Usuario).where(Usuario.email == "dona@exemplo.com"))
+            assert conta is not None and conta.is_admin and conta.versao_sessao == 1
+
+    def test_subida_sem_senha_nao_mexe(self, app: Flask) -> None:
+        sincronizar_admin(app)
+        with app.app_context():
+            assert db.session.scalar(select(Usuario)) is None
