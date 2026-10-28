@@ -50,7 +50,7 @@ def create_app(config: type[Config] = Config) -> Flask:
         # Atrás do Render/Caddy/Cloudflare o IP da conexão é o do proxy: sem isso o limite de tentativas
         # de login valeria para todo mundo junto (um robô no /conta/entrar trancaria até o admin).
         saltos = app.config["PROXY_SALTOS"]
-        app.wsgi_app = ProxyFix(app.wsgi_app, x_for=saltos, x_proto=saltos, x_host=saltos)  # type: ignore[method-assign]
+        app.wsgi_app = ProxyFix(app.wsgi_app, x_for=saltos, x_proto=saltos)  # type: ignore[method-assign]
     if app.config["EM_PRODUCAO"] and not (app.config["SUPABASE_URL"] and app.config["SUPABASE_SECRET_KEY"]):
         app.logger.warning(
             "SUPABASE_URL/SUPABASE_SECRET_KEY ausentes: as fotos vão para o disco local, "
