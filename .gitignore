@@ -11,3 +11,7 @@ static/uploads/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+
+# Understand Anything (arquivos locais; o resto de .ua/ deve ser commitado)
+.ua/intermediate/
+.ua/diff-overlay.json
